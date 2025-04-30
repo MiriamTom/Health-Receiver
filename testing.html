@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Health Receiver</title>
+
+    <!-- Custom fonts for this template-->
+    <link href="vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet">
+
+    <!-- Custom styles for this template-->
+    <link href="css/sb-admin-2.min.css" rel="stylesheet">
+    
+    <!-- Leaflet CSS for maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-analytics.js"></script>
+    
+    <!-- Plotly.js for charts -->
+    <script src="https://cdn.plot.ly/plotly-2.14.0.min.js"></script>
+    
+    <!-- Flatpickr for calendar -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+    <!-- Bootstrap core JavaScript-->
+    <script src="vendor/jquery/jquery.min.js"></script>
+    <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Core plugin JavaScript-->
+    <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
+
+    <!-- Custom scripts for all pages-->
+    <script src="js/sb-admin-2.min.js"></script>
+
+    <!-- Page level plugins -->
+    <script src="vendor/chart.js/Chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+
+    <!-- MQTT and Map Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+        /* Custom styles for the daily summary */
+        .chart-area-small {
+            height: 150px;
+            width: 100%;
+        }
+
+        .spo2-gauge-container {
+            display: flex;
+            align-items: center;
+        }
+
+        .spo2-ranges {
+            margin-left: 20px;
+        }
+
+        .range-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .range-dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .stress-bar-container {
+            margin-bottom: 10px;
+        }
+
+        .stress-bar-label {
+            font-size: 0.75rem;
+            margin-bottom: 3px;
+        }
+
+        .vitality-score-container {
+            display: flex;
+            align-items: center;
+        }
+
+        .vitality-gauge {
+            width: 150px;
+            height: 150px;
+        }
+
+        .vitality-details {
+            margin-left: 30px;
+            flex-grow: 1;
+        }
+
+        .vitality-item {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .vitality-item i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .vitality-tips ul {
+            padding-left: 20px;
+            margin-bottom: 0;
+        }
+
+        .vitality-tips li {
+            margin-bottom: 5px;
+        }
+
+        .training-load-container {
+            display: flex;
+        }
+
+        .training-load-chart {
+            width: 70%;
+            height: 200px;
+        }
+
+        .training-load-recommendations {
+            width: 30%;
+            padding-left: 20px;
+        }
+
+        .recommendation-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .recommendation-item i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .spo2-gauge-container,
+            .vitality-score-container,
+            .training-load-container {
+                flex-direction: column;
+            }
+
+            .spo2-ranges,
+            .vitality-details,
+            .training-load-recommendations {
+                margin-left: 0;
+                margin-top: 20px;
+                width: 100%;
+            }
+
+            .training-load-chart {
+                width: 100%;
+            }
+        }
+
+        /* Custom styles for the date picker */
+        #dailySummaryDatePicker {
+            cursor: pointer;
+            border-radius: 0.35rem 0 0 0.35rem !important;
+            padding-right: 0;
+        }
+        #calendarTrigger {
+            border-radius: 0 0.35rem 0.35rem 0 !important;
+            padding: 0.375rem 0.75rem;
+        }
+        .input-group {
+            box-shadow: 0 0.15rem 0.3rem rgba(0,0,0,0.1);
+        }
+        #dailySummaryDatePicker {
+            cursor: pointer;
+            border-radius: 0.35rem 0 0 0.35rem !important;
+            padding-right: 0;
+        }
+        #calendarTrigger {
+            border-radius: 0 0.35rem 0.35rem 0 !important;
+            padding: 0.375rem 0.75rem;
+        }
+        .input-group {
+            box-shadow: 0 0.15rem 0.3rem rgba(0,0,0,0.1);
+        }
+        .chart-area-small {
+            height: 150px;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body id="page-top">
+
+<!-- Page Wrapper -->
+<div id="wrapper">
+
+    <!-- Sidebar -->
+    <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+
+        <!-- Sidebar - Brand -->
+        <a class="sidebar-brand d-flex align-items-center justify-content-center" href="index.html">
+            <div class="sidebar-brand-icon rotate-n-15">
+                <i class="fas fa-laugh-wink"></i>
+            </div>
+            <div class="sidebar-brand-text mx-3">Health Receiver <sup>1</sup></div>
+        </a>
+
+        <!-- Divider -->
+        <hr class="sidebar-divider my-0">
+
+        <!-- Nav Item - Dashboard -->
+        <li class="nav-item active">
+            <a class="nav-link" href="index.html">
+                <i class="fas fa-fw fa-tachometer-alt"></i>
+                <span>Dashboard</span></a>
+        </li>
+
+        <!-- Divider -->
+        <hr class="sidebar-divider">
+
+        <!-- Heading -->
+        <div class="sidebar-heading">
+            Interface
+        </div>
+
+        <!-- Nav Item - Pages Collapse Menu -->
+        <li class="nav-item">
+            <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTwo"
+               aria-expanded="true" aria-controls="collapseTwo">
+                <i class="fas fa-fw fa-cog"></i>
+                <span>Components</span>
+            </a>
+            <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
+                <div class="bg-white py-2 collapse-inner rounded">
+                    <h6 class="collapse-header">Custom Components:</h6>
+                    <a class="collapse-item" href="utilities-other.html">Data scheme</a>
+                </div>
+            </div>
+        </li>
+
+        <!-- Nav Item - Utilities Collapse Menu -->
+        <li class="nav-item">
+            <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseUtilities"
+               aria-expanded="true" aria-controls="collapseUtilities">
+                <i class="fas fa-fw fa-wrench"></i>
+                <span>RAW DATA </span>
+            </a>
+            <div id="collapseUtilities" class="collapse" aria-labelledby="headingUtilities"
+                 data-parent="#accordionSidebar">
+                <div class="bg-white py-2 collapse-inner rounded">
+                    <h6 class="collapse-header">RAW DATA </h6>
+                    <a class="collapse-item" href="utilities-color.html">RAW JSON</a>
+                    <a class="collapse-item" href="utilities-border.html">RAW tables </a>
+                </div>
+            </div>
+        </li>
+
+        <!-- Divider -->
+        <hr class="sidebar-divider">
+
+        <!-- Heading -->
+        <div class="sidebar-heading">
+            Addons
+        </div>
+
+        <!-- Nav Item - Charts -->
+        <li class="nav-item">
+            <a class="nav-link" href="charts.html">
+                <i class="fas fa-fw fa-chart-area"></i>
+                <span>Charts</span></a>
+        </li>
+
+        <!-- Nav Item - Tables -->
+        <li class="nav-item">
+            <a class="nav-link" href="tables.html">
+                <i class="fas fa-fw fa-table"></i>
+                <span>Daily Summary</span></a>
+        </li>
+
+        <!-- Divider -->
+        <hr class="sidebar-divider d-none d-md-block">
+
+        <!-- Sidebar Toggler (Sidebar) -->
+        <div class="text-center d-none d-md-inline">
+            <button class="rounded-circle border-0" id="sidebarToggle"></button>
+        </div>
+
+        <!-- Sidebar Message -->
+        <div class="sidebar-card d-none d-lg-flex">
+            <img class="sidebar-card-illustration mb-2" src="img/undraw_rocket.svg" alt="...">
+            <p class="text-center mb-2"><strong>Receiver APP</strong> is packed with features, components, and more!</p>
+            <a class="btn btn-success btn-sm" href="https://github.com/MiriamTom">Android Application</a>
+        </div>
+
+    </ul>
+    <!-- End of Sidebar -->
+
+    <!-- Content Wrapper -->
+    <div id="content-wrapper" class="d-flex flex-column">
+
+        <!-- Main Content -->
+        <div id="content">
+
+            <!-- Topbar -->
+            <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+
+                <!-- Sidebar Toggle (Topbar) -->
+                <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
+                    <i class="fa fa-bars"></i>
+                </button>
+
+
+
+                <!-- Topbar Navbar -->
+                <ul class="navbar-nav ml-auto">
+
+                    <!-- Nav Item - Search Dropdown (Visible Only XS) -->
+                    <li class="nav-item dropdown no-arrow d-sm-none">
+                        <a class="nav-link dropdown-toggle" href="#" id="searchDropdown" role="button"
+                           data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <i class="fas fa-search fa-fw"></i>
+                        </a>
+                        <!-- Dropdown - Messages -->
+                        <div class="dropdown-menu dropdown-menu-right p-3 shadow animated--grow-in"
+                             aria-labelledby="searchDropdown">
+                            <form class="form-inline mr-auto w-100 navbar-search">
+                                <div class="input-group">
+                                    <input type="text" class="form-control bg-light border-0 small"
+                                           placeholder="Search for..." aria-label="Search"
+                                           aria-describedby="basic-addon2">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-primary" type="button">
+                                            <i class="fas fa-search fa-sm"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </li>
+
+                    <div class="topbar-divider d-none d-sm-block"></div>
+
+                    <!-- Nav Item - User Information -->
+                    <li class="nav-item dropdown no-arrow">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
+                           data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <span class="mr-2 d-none d-lg-inline text-gray-600 small">Douglas McGee</span>
+                            <img class="img-profile rounded-circle"
+                                 src="img/undraw_profile.svg">
+                        </a>
+                        <!-- Dropdown - User Information -->
+                        <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"
+                             aria-labelledby="userDropdown">
+                            <a class="dropdown-item" href="#">
+                                <i class="fas fa-user fa-sm fa-fw mr-2 text-gray-400"></i>
+                                Profile
+                            </a>
+                            <a class="dropdown-item" href="#">
+                                <i class="fas fa-cogs fa-sm fa-fw mr-2 text-gray-400"></i>
+                                Settings
+                            </a>
+                            <a class="dropdown-item" href="#">
+                                <i class="fas fa-list fa-sm fa-fw mr-2 text-gray-400"></i>
+                                Activity Log
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal">
+                                <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
+                                Logout
+                            </a>
+                        </div>
+                    </li>
+
+                </ul>
+
+            </nav>
+            <!-- End of Topbar -->
+
+                <!-- Begin Page Content -->
+            <!-- Begin Page Content -->
+            <div class="container-fluid">
+                <!-- Daily Summary Header -->
+                <div class="row mb-4">
+                    <div class="col-lg-12">
+                        <div class="card shadow main-header">
+                            <div class="card-header py-3 d-flex flex-column flex-md-row justify-content-between align-items-center border-0">
+                                <div class="d-flex align-items-center mb-2 mb-md-0">
+                                    <h4 class="m-0 font-weight-bold">Health Data Dashboard</h4>
+                                </div>
+                                <div class="d-flex flex-column flex-md-row align-items-center">
+                                    <div id="summaryDate" class="font-weight-bold mr-0 mr-md-3 mb-2 mb-md-0"></div>
+                                    <div class="input-group date-picker-container" style="width: 200px;">
+                                        <input type="text" class="form-control bg-white border-0 small" id="dailySummaryDatePicker" placeholder="Select date" readonly>
+                                        <div class="input-group-append">
+                                            <button class="btn btn-white border-0" type="button" id="calendarTrigger">
+                                                <i class="fas fa-calendar-alt text-primary"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body py-2 text-white bg-transparent">
+                                <div class="row">
+                                    <div class="col-md-3 d-flex align-items-center">
+                                        <i class="fas fa-user-circle fa-lg mr-2"></i>
+                                        <span id="userName">User: </span>
+                                    </div>
+                                    <div class="col-md-3 d-flex align-items-center">
+                                        <i class="fas fa-heartbeat fa-lg mr-2"></i>
+                                        <span id="deviceStatus"></span>
+                                    </div>
+                                    <div class="col-md-3 d-flex align-items-center">
+                                        <i class="fas fa-sync-alt fa-lg mr-2"></i>
+                                        <span id="lastSync">Time: </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Key Metrics Overview -->
+                <div class="row mb-4">
+                    <!-- Steps -->
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-success shadow h-100">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                            Steps</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="stepsValue">0</div>
+                                        <div class="mt-2 mb-0 text-muted text-xs">
+                                            <div class="progress progress-sm mt-2">
+                                                <div id="stepsProgressBar" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
+                                            </div>
+                                            <span class="text-success mr-2" id="stepsProgress"></span>
+                                            <span id="stepsGoalText"></span>
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-walking fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Calories -->
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-warning shadow h-100">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                            Calories Burned</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="caloriesValue">0</div>
+                                        <div class="mt-2 mb-0 text-muted text-xs">
+                                            <span id="caloriesNote">Based on activity</span>
+                                            <div class="progress progress-sm mt-2">
+                                                <div class="progress-bar bg-warning" role="progressbar" style="width: 65%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-fire fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Standing Time -->
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-info shadow h-100">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                            Active Time</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="standingValue">0h 0m</div>
+                                        <div class="mt-2 mb-0 text-muted text-xs">
+                                            <span id="standingNote">Time spent active</span>
+                                            <div class="progress progress-sm mt-2">
+                                                <div class="progress-bar bg-info" role="progressbar" style="width: 45%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-clock fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Training Load -->
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-danger shadow h-100">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                            Training Load</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="trainingLoadValue">0</div>
+                                        <div class="mt-2 mb-0 text-muted text-xs">
+                                            <span id="trainingLoadLevel">No load</span>
+                                            <div class="progress progress-sm mt-2">
+                                                <div class="progress-bar bg-danger" role="progressbar" style="width: 30%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-dumbbell fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Health Metrics Section -->
+                <div class="row">
+                    <!-- Heart Rate -->
+                    <div class="col-lg-6 mb-4">
+                        <div class="card shadow">
+                            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                                <h6 class="m-0 font-weight-bold text-primary">
+                                    <i class="fas fa-heartbeat mr-2"></i>Heart Rate
+                                </h6>
+                                <div class="dropdown no-arrow">
+                                    <a class="dropdown-toggle" href="#" role="button" id="hrDropdown"
+                                       data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                                    </a>
+                                    <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in"
+                                         aria-labelledby="hrDropdown">
+                                        <div class="dropdown-header">Heart Rate Zones:</div>
+                                        <a class="dropdown-item" href="#">
+                                            <span class="badge badge-danger badge-pill mr-2">Resting</span>
+                                            <span id="hrRestingValue">0</span> bpm
+                                        </a>
+                                        <a class="dropdown-item" href="#">
+                                            <span class="badge badge-success badge-pill mr-2">Optimal</span>
+                                            60-100 bpm
+                                        </a>
+                                        <div class="dropdown-divider"></div>
+                                        <a class="dropdown-item" href="#">
+                                            <i class="fas fa-chart-line mr-2"></i>View Trends
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4 text-center">
+                                        <div class="text-xs font-weight-bold text-primary mb-1">Average</div>
+                                        <div class="h3 mb-0 font-weight-bold" id="hrAvgValue">0</div>
+                                        <small class="text-muted">bpm</small>
+                                    </div>
+                                    <div class="col-md-4 text-center">
+                                        <div class="text-xs font-weight-bold text-success mb-1">Minimum</div>
+                                        <div class="h3 mb-0 font-weight-bold" id="hrMinValue">0</div>
+                                        <small class="text-muted">at <span id="hrMinTime">--:--</span></small>
+                                    </div>
+                                    <div class="col-md-4 text-center">
+                                        <div class="text-xs font-weight-bold text-danger mb-1">Maximum</div>
+                                        <div class="h3 mb-0 font-weight-bold" id="hrMaxValue">0</div>
+                                        <small class="text-muted">at <span id="hrMaxTime">--:--</span></small>
+                                    </div>
+                                </div>
+                                <hr>
+                                <div class="chart-container">
+                                    <div id="hrVariabilityChart" style="height: 250px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SpO2 -->
+                    <div class="col-lg-6 mb-4">
+                        <div class="card shadow">
+                            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                                <h6 class="m-0 font-weight-bold text-primary">
+                                    <i class="fas fa-lungs mr-2"></i>Blood Oxygen (SpO2)
+                                </h6>
+                                <span class="badge badge-info" id="spo2Status">Normal</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4 text-center">
+                                        <div class="text-xs font-weight-bold text-primary mb-1">Average</div>
+                                        <div class="h3 mb-0 font-weight-bold" id="spo2AvgValue">0</div>
+                                        <small class="text-muted">%</small>
+                                    </div>
+                                    <div class="col-md-4 text-center">
+                                        <div class="text-xs font-weight-bold text-success mb-1">Minimum</div>
+                                        <div class="h3 mb-0 font-weight-bold" id="spo2MinValue">0</div>
+                                        <small class="text-muted">at <span id="spo2MinTime">--:--</span></small>
+                                    </div>
+                                    <div class="col-md-4 text-center">
+                                        <div class="text-xs font-weight-bold text-danger mb-1">Maximum</div>
+                                        <div class="h3 mb-0 font-weight-bold" id="spo2MaxValue">0</div>
+                                        <small class="text-muted">at <span id="spo2MaxTime">--:--</span></small>
+                                    </div>
+                                </div>
+                                <hr>
+                                <div class="spo2-gauge-container">
+                                    <div id="spo2Gauge" style="height: 200px;"></div>
+                                    <div class="spo2-ranges">
+                                        <div class="range-item">
+                                            <span class="range-dot" style="background-color: #dc3545;"></span>
+                                            <span>Low (&lt;90%)</span>
+                                        </div>
+                                        <div class="range-item">
+                                            <span class="range-dot" style="background-color: #ffc107;"></span>
+                                            <span>Normal (90-94%)</span>
+                                        </div>
+                                        <div class="range-item">
+                                            <span class="range-dot" style="background-color: #28a745;"></span>
+                                            <span>Optimal (≥95%)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stress & Vitality Section -->
+                <div class="row">
+                    <!-- Stress -->
+                    <div class="col-lg-6 mb-4">
+                        <div class="card shadow">
+                            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                                <h6 class="m-0 font-weight-bold text-primary">
+                                    <i class="fas fa-brain mr-2"></i>Stress Levels
+                                </h6>
+                                <div id="stressSummary" class="text-danger font-weight-bold"></div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4 text-center">
+                                        <div class="text-xs font-weight-bold text-primary mb-1">Average</div>
+                                        <div class="h3 mb-0 font-weight-bold" id="stressAvgValue">0</div>
+                                        <small class="text-muted">/100</small>
+                                    </div>
+                                    <div class="col-md-4 text-center">
+                                        <div class="text-xs font-weight-bold text-success mb-1">Minimum</div>
+                                        <div class="h3 mb-0 font-weight-bold" id="stressMinValue">0</div>
+                                        <small class="text-muted">/100</small>
+                                    </div>
+                                    <div class="col-md-4 text-center">
+                                        <div class="text-xs font-weight-bold text-danger mb-1">Maximum</div>
+                                        <div class="h3 mb-0 font-weight-bold" id="stressMaxValue">0</div>
+                                        <small class="text-muted">/100</small>
+                                    </div>
+                                </div>
+                                <hr>
+                                <div class="stress-levels">
+                                    <div class="stress-bar-container mb-3">
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span class="stress-bar-label">Low Stress (0-25)</span>
+                                            <span class="text-success font-weight-bold" id="stressLowPercent">0%</span>
+                                        </div>
+                                        <div class="progress">
+                                            <div id="stressLowBar" class="progress-bar bg-success" role="progressbar"></div>
+                                        </div>
+                                    </div>
+                                    <div class="stress-bar-container mb-3">
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span class="stress-bar-label">Medium Stress (26-50)</span>
+                                            <span class="text-warning font-weight-bold" id="stressMediumPercent">0%</span>
+                                        </div>
+                                        <div class="progress">
+                                            <div id="stressMediumBar" class="progress-bar bg-warning" role="progressbar"></div>
+                                        </div>
+                                    </div>
+                                    <div class="stress-bar-container">
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span class="stress-bar-label">High Stress (51-100)</span>
+                                            <span class="text-danger font-weight-bold" id="stressHighPercent">0%</span>
+                                        </div>
+                                        <div class="progress">
+                                            <div id="stressHighBar" class="progress-bar bg-danger" role="progressbar"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vitality -->
+                    <div class="col-lg-6 mb-4">
+                        <div class="card shadow">
+                            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                                <h6 class="m-0 font-weight-bold text-primary">
+                                    <i class="fas fa-battery-three-quarters mr-2"></i>Vitality
+                                </h6>
+                                <span class="badge" id="vitalityBadge">0</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="vitality-score-container">
+                                    <div class="vitality-gauge" id="vitalityGauge" style="height: 200px;"></div>
+                                    <div class="vitality-details">
+                                        <div class="vitality-item">
+                                            <i class="fas fa-battery-quarter text-danger"></i>
+                                            <span>Current: <strong id="vitalityCurrent">0</strong>/100</span>
+                                        </div>
+                                        <div class="vitality-item">
+                                            <i class="fas fa-running text-danger"></i>
+                                            <span>High Activity: +<span id="vitalityHigh">0</span></span>
+                                        </div>
+                                        <div class="vitality-item">
+                                            <i class="fas fa-walking text-warning"></i>
+                                            <span>Moderate Activity: +<span id="vitalityModerate">0</span></span>
+                                        </div>
+                                        <div class="vitality-item">
+                                            <i class="fas fa-seedling text-success"></i>
+                                            <span>Light Activity: +<span id="vitalityLight">0</span></span>
+                                        </div>
+                                        <div class="vitality-item">
+                                            <i class="fas fa-bed text-info"></i>
+                                            <span>Sleep Quality: +<span id="vitalitySleep">0</span></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <hr>
+                                <div class="vitality-tips">
+                                    <h6><i class="fas fa-lightbulb text-warning"></i> Vitality Tips</h6>
+                                    <ul id="vitalityTipsList">
+                                        <li>Get at least 7-8 hours of quality sleep</li>
+                                        <li>Stay hydrated throughout the day (2-3L water)</li>
+                                        <li>Take short breaks every hour during work</li>
+                                        <li>Include 30 minutes of moderate activity daily</li>
+                                        <li>Practice mindfulness or meditation</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Training Load Details -->
+                <div class="row mb-4">
+                    <div class="col-lg-12">
+                        <div class="card shadow">
+                            <div class="card-header py-3 d-flex flex-column flex-md-row justify-content-between align-items-center">
+                                <h6 class="m-0 font-weight-bold text-primary">
+                                    <i class="fas fa-dumbbell mr-2"></i>Training Load Analysis
+                                </h6>
+                                <div class="training-load-period mt-2 mt-md-0">
+                                    <span class="badge badge-primary mr-2">Daily: <span id="trainingLoadDay">0</span></span>
+                                    <span class="badge badge-info mr-2">Weekly: <span id="trainingLoadWeek">0</span></span>
+                                    <span class="badge badge-secondary">Recovery: <span id="recoveryTime">0h</span></span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="training-load-container">
+                                    <div class="training-load-chart" id="trainingLoadChart" style="height: 300px;"></div>
+                                    <div class="training-load-recommendations">
+                                        <h6><i class="fas fa-clipboard-check text-primary"></i> Recommendations</h6>
+                                        <div id="trainingLoadRecommendations">
+                                            <p class="mb-3" id="loadRecommendationText">Based on your current load, you're in a good training zone.</p>
+                                            <div class="recommendation-details">
+                                                <div class="recommendation-item mb-3">
+                                                    <i class="fas fa-running text-primary"></i>
+                                                    <span id="recommendationActivity">Consider moderate activity tomorrow</span>
+                                                </div>
+                                                <div class="recommendation-item mb-3">
+                                                    <i class="fas fa-bed text-primary"></i>
+                                                    <span id="recommendationRecovery">Aim for 8 hours of sleep</span>
+                                                </div>
+                                                <div class="recommendation-item mb-3">
+                                                    <i class="fas fa-utensils text-primary"></i>
+                                                    <span id="recommendationNutrition">Increase protein intake</span>
+                                                </div>
+                                                <div class="recommendation-item">
+                                                    <i class="fas fa-glass-whiskey text-primary"></i>
+                                                    <span id="recommendationHydration">Drink 2L of water today</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    // Firebase Configuration
+    const firebaseConfig = {
+        authDomain: "bachelor-thesis-9bd4c.firebaseapp.com",
+        projectId: "bachelor-thesis-9bd4c",
+        storageBucket: "bachelor-thesis-9bd4c.appspot.com",
+    };
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    // Main initialization
+    document.addEventListener('DOMContentLoaded', async function() {
+        try {
+            console.log("📤 Starting to load data...");
+            await loadDevicesAndXiaomiData();
+        } catch (error) {
+            console.error("Initialization error:", error);
+            showError("Failed to load data. Please try again.");
+        }
+    });
+    // Fetch data and process the "database" collection
+    async function loadDevicesAndXiaomiData() {
+        try {
+            console.log("📡 Fetching data from Firestore...");
+            const snapshot = await db.collection("databases").orderBy("timestamp", "desc").limit(1).get();
+            console.log("📦 Data fetched from Firestore:", snapshot.size, "documents");
+            let processedData = [];
+            snapshot.forEach(doc => {
+                const docData = doc.data();
+                const timestamp = docData.timestamp;
+                const compressedData = docData.data;
+                console.log(`📝 Processing document: ${doc.id}, Timestamp: ${timestamp}`);
+                // Decompress and parse the data
+                const parsedJson = decompressAndParse(compressedData);
+                if (parsedJson) {
+                    console.log("📦 Parsed JSON object:", parsedJson);
+                    // Attach timestamp to each entry
+                    parsedJson.forEach(item => {
+                        item.timestamp = timestamp;
+                    });
+                    processedData = processedData.concat(parsedJson);
+                } else {
+                    console.warn(`⚠️ Document ${doc.id} could not be decompressed or parsed.`);
+                }
+            });
+            console.log("📊 After processing the data: ", processedData.length, "records.");
+            updateDashboardUI(processedData);
+        } catch (error) {
+            console.error("❌ Error loading data:", error);
+            showError("Failed to load database data.");
+        }
+    }
+    // Decompress and parse the data from the Firestore field
+    function decompressAndParse(compressedData) {
+        try {
+            if (!compressedData) {
+                console.warn("❌ No compressed data found.");
+                return null;
+            }
+            console.log("📚 Decompressing data...");
+            const binaryData = atob(compressedData);
+            const uint8Array = new Uint8Array(binaryData.length);
+            for (let i = 0; i < binaryData.length; i++) {
+                uint8Array[i] = binaryData.charCodeAt(i);
+            }
+            const decompressed = new TextDecoder().decode(pako.inflate(uint8Array));
+            console.log("🔍 Decompressed data:", decompressed);
+            return JSON.parse(decompressed);
+        } catch (error) {
+            console.warn("Data decompression/parsing error:", error);
+            return null;
+        }
+    }
+    // Format timestamp for display
+    function formatTimestamp(timestamp) {
+        if (!timestamp) return 'N/A';
+        try {
+            const date = new Date(timestamp);
+            return date.toLocaleString();
+        } catch (e) {
+            return timestamp;
+        }
+    }
+    // Update the dashboard UI with the processed data
+    function updateDashboardUI(data) {
+        if (!data || data.length === 0) {
+            showError("No health data available");
+            return;
+        }
+        // Set the current date in the header
+        const latestTimestamp = data[0].timestamp;
+        const currentDate = formatTimestamp(latestTimestamp);
+        document.getElementById('summaryDate').textContent = currentDate;
+        // Extract metrics from the data
+        const metrics = extractHealthMetrics(data);
+        // Update Activity Summary
+        document.getElementById('stepsValue').textContent = metrics.steps || '0';
+        document.getElementById('caloriesValue').textContent = metrics.calories || '0';
+        document.getElementById('standingValue').textContent = metrics.standingTime || '0h 0m';
+        document.getElementById('trainingLoadValue').textContent = metrics.trainingLoad || '0';
+        // Update Heart Rate metrics
+        document.getElementById('hrAvgValue').textContent = metrics.heartRate.avg || '0';
+        document.getElementById('hrMinValue').textContent = metrics.heartRate.min || '0';
+        document.getElementById('hrMaxValue').textContent = metrics.heartRate.max || '0';
+        document.getElementById('hrRestingValue').textContent = metrics.heartRate.resting || '0';
+        // Update SpO2 metrics
+        document.getElementById('spo2AvgValue').textContent = metrics.spo2.avg || '0';
+        document.getElementById('spo2MinValue').textContent = metrics.spo2.min || '0';
+        document.getElementById('spo2MaxValue').textContent = metrics.spo2.max || '0';
+        // Update stress status based on SpO2 average
+        const spo2Status = document.getElementById('spo2Status');
+        if (metrics.spo2.avg < 90) {
+            spo2Status.textContent = 'Low';
+            spo2Status.className = 'badge badge-danger';
+        } else if (metrics.spo2.avg < 95) {
+            spo2Status.textContent = 'Normal';
+            spo2Status.className = 'badge badge-info';
+        } else {
+            spo2Status.textContent = 'Optimal';
+            spo2Status.className = 'badge badge-success';
+        }
+        // Update Stress metrics
+        document.getElementById('stressAvgValue').textContent = metrics.stress.avg || '0';
+        document.getElementById('stressMinValue').textContent = metrics.stress.min || '0';
+        document.getElementById('stressMaxValue').textContent = metrics.stress.max || '0';
+        // Update stress summary
+        const stressSummary = document.getElementById('stressSummary');
+        if (metrics.stress.avg > 50) {
+            stressSummary.textContent = 'High Stress Day';
+            stressSummary.className = 'text-danger font-weight-bold';
+        } else if (metrics.stress.avg > 25) {
+            stressSummary.textContent = 'Moderate Stress';
+            stressSummary.className = 'text-warning font-weight-bold';
+        } else {
+            stressSummary.textContent = 'Low Stress';
+            stressSummary.className = 'text-success font-weight-bold';
+        }
+        // Update Vitality metrics
+        document.getElementById('vitalityCurrent').textContent = metrics.vitality.current || '0';
+        document.getElementById('vitalityBadge').textContent = metrics.vitality.current || '0';
+        // Set badge color based on vitality score
+        const vitalityBadge = document.getElementById('vitalityBadge');
+        if (metrics.vitality.current < 30) {
+            vitalityBadge.className = 'badge badge-danger';
+        } else if (metrics.vitality.current < 70) {
+            vitalityBadge.className = 'badge badge-warning';
+        } else {
+            vitalityBadge.className = 'badge badge-success';
+        }
+        // Update Training Load details
+        document.getElementById('trainingLoadDay').textContent = metrics.trainingLoad || '0';
+        document.getElementById('trainingLoadWeek').textContent = metrics.trainingLoadWeek || '0';
+        // Update recommendations based on training load
+        const recommendationText = document.getElementById('loadRecommendationText');
+        if (metrics.trainingLoad > 80) {
+            recommendationText.textContent = "High training load detected. Consider a recovery day.";
+            recommendationText.className = 'text-danger';
+        } else if (metrics.trainingLoad > 50) {
+            recommendationText.textContent = "Moderate training load. Maintain your routine.";
+            recommendationText.className = 'text-warning';
+        } else {
+            recommendationText.textContent = "Good training zone. You can increase intensity if desired.";
+            recommendationText.className = 'text-success';
+        }
+    }
+    // Extract health metrics from the raw data
+    function extractHealthMetrics(data) {
+        // This is a placeholder - you'll need to adjust based on your actual data structure
+        const metrics = {
+            steps: 0,
+            calories: 0,
+            standingTime: '0h 0m',
+            trainingLoad: 0,
+            trainingLoadWeek: 0,
+            heartRate: {
+                avg: 0,
+                min: 0,
+                max: 0,
+                resting: 0
+            },
+            spo2: {
+                avg: 0,
+                min: 0,
+                max: 0
+            },
+            stress: {
+                avg: 0,
+                min: 0,
+                max: 0
+            },
+            vitality: {
+                current: 0,
+                high: 0,
+                moderate: 0,
+                light: 0
+            }
+        };
+        // Process each data point to extract metrics
+        data.forEach(item => {
+            // Example - adjust these based on your actual data structure
+            if (item.steps) metrics.steps = item.steps;
+            if (item.calories) metrics.calories = item.calories;
+            if (item.standing_time) metrics.standingTime = formatTime(item.standing_time);
+            if (item.training_load) metrics.trainingLoad = item.training_load;
+            // Heart rate data
+            if (item.heart_rate_avg) metrics.heartRate.avg = item.heart_rate_avg;
+            if (item.heart_rate_min) metrics.heartRate.min = item.heart_rate_min;
+            if (item.heart_rate_max) metrics.heartRate.max = item.heart_rate_max;
+            if (item.heart_rate_resting) metrics.heartRate.resting = item.heart_rate_resting;
+            // SpO2 data
+            if (item.spo2_avg) metrics.spo2.avg = item.spo2_avg;
+            if (item.spo2_min) metrics.spo2.min = item.spo2_min;
+            if (item.spo2_max) metrics.spo2.max = item.spo2_max;
+            // Stress data
+            if (item.stress_avg) metrics.stress.avg = item.stress_avg;
+            if (item.stress_min) metrics.stress.min = item.stress_min;
+            if (item.stress_max) metrics.stress.max = item.stress_max;
+            // Vitality data
+            if (item.vitality_score) metrics.vitality.current = item.vitality_score;
+        });
+        return metrics;
+    }
+    // Format time from minutes to "Xh Ym" format
+    function formatTime(minutes) {
+        if (!minutes) return '0h 0m';
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return `${hours}h ${mins}m`;
+    }
+    // Format timestamp for display
+    function formatTimestamp(timestamp) {
+        if (!timestamp) return 'N/A';
+        try {
+            const date = new Date(timestamp);
+            return date.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        } catch (e) {
+            return timestamp;
+        }
+    }
+    // Show error message
+    function showError(message) {
+        const errorDiv = document.getElementById('errorMessage');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+    }
+</script>
+</body>
+</html>

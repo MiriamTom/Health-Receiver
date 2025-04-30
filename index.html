@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Health Receiver</title>
+
+    <!-- Custom fonts for this template-->
+    <link href="vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
+    <link
+        href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i"
+        rel="stylesheet">
+
+    <!-- Custom styles for this template-->
+    <link href="css/sb-admin-2.min.css" rel="stylesheet">
+    
+    <!-- Leaflet CSS for maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    
+    <style>
+        /* Map container styling */
+        .map-container {
+            height: calc(100vh - 150px);
+            overflow: hidden;
+            border-radius: 0.35rem;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        }
+        
+        #map {
+            height: 70%;
+            width: 100%;
+            min-height: 400px;
+        }
+        
+        /* User list styling */
+        .user-list {
+            max-height: 30%;
+            overflow-y: auto;
+            padding: 10px;
+            background: #f8f9fc;
+            border-top: 1px solid #e3e6f0;
+        }
+        
+        .user-item {
+            padding: 8px;
+            border-bottom: 1px solid #e3e6f0;
+            cursor: pointer;
+        }
+        
+        .user-item:hover {
+            background: #eaecf4;
+        }
+        
+        .user-item.active {
+            background: #4e73df;
+            color: white;
+        }
+        
+        /* Enhanced marker styles */
+        .user-marker {
+            position: relative;
+            width: 30px;
+            height: 42px;
+        }
+        .marker-pin {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 30px;
+            height: 30px;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            background: #4e73df;
+        }
+        .marker-text {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-weight: bold;
+            color: #4e73df;
+            font-size: 12px;
+        }
+        
+        /* Pulse animation for active users */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        /* Custom colors for different users */
+        .marker-miriam .marker-pin { background: #4e73df; }
+        .marker-ria .marker-pin { background: #1cc88a; }
+        .marker-user3 .marker-pin { background: #f6c23e; }
+        .marker-user4 .marker-pin { background: #e74a3b; }
+        .marker-user5 .marker-pin { background: #36b9cc; }
+    </style>
+</head>
+
+<body id="page-top">
+
+    <!-- Page Wrapper -->
+    <div id="wrapper">
+
+        <!-- Sidebar -->
+        <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+
+            <!-- Sidebar - Brand -->
+            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="index.html">
+                <div class="sidebar-brand-icon rotate-n-15">
+                    <i class="fas fa-laugh-wink"></i>
+                </div>
+                <div class="sidebar-brand-text mx-3">Health Receiver <sup>1</sup></div>
+            </a>
+
+            <!-- Divider -->
+            <hr class="sidebar-divider my-0">
+
+            <!-- Nav Item - Dashboard -->
+            <li class="nav-item active">
+                <a class="nav-link" href="index.html">
+                    <i class="fas fa-fw fa-tachometer-alt"></i>
+                    <span>Dashboard</span></a>
+            </li>
+
+            <!-- Divider -->
+            <hr class="sidebar-divider">
+
+            <!-- Heading -->
+            <div class="sidebar-heading">
+                Interface
+            </div>
+
+            <!-- Nav Item - Pages Collapse Menu -->
+            <li class="nav-item">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTwo"
+                    aria-expanded="true" aria-controls="collapseTwo">
+                    <i class="fas fa-fw fa-cog"></i>
+                    <span>Components</span>
+                </a>
+                <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <h6 class="collapse-header">Custom Components:</h6>
+                        <a class="collapse-item" href="utilities-other.html">Data scheme</a>
+                    </div>
+                </div>
+            </li>
+
+            <!-- Nav Item - Utilities Collapse Menu -->
+            <li class="nav-item">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseUtilities"
+                    aria-expanded="true" aria-controls="collapseUtilities">
+                    <i class="fas fa-fw fa-wrench"></i>
+                    <span>RAW DATA </span>
+                </a>
+                <div id="collapseUtilities" class="collapse" aria-labelledby="headingUtilities"
+                    data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <h6 class="collapse-header">RAW DATA </h6>
+                        <a class="collapse-item" href="utilities-color.html">RAW JSON</a>
+                        <a class="collapse-item" href="utilities-border.html">RAW tables </a>
+                    </div>
+                </div>
+            </li>
+
+            <!-- Divider -->
+            <hr class="sidebar-divider">
+
+            <!-- Heading -->
+            <div class="sidebar-heading">
+                Addons
+            </div>
+
+            <!-- Nav Item - Charts -->
+            <li class="nav-item">
+                <a class="nav-link" href="charts.html">
+                    <i class="fas fa-fw fa-chart-area"></i>
+                    <span>Charts</span></a>
+            </li>
+
+            <!-- Nav Item - Tables -->
+            <li class="nav-item">
+                <a class="nav-link" href="tables.html">
+                    <i class="fas fa-fw fa-table"></i>
+                    <span>Daily Summary</span></a>
+            </li>
+
+            <!-- Divider -->
+            <hr class="sidebar-divider d-none d-md-block">
+
+            <!-- Sidebar Toggler (Sidebar) -->
+            <div class="text-center d-none d-md-inline">
+                <button class="rounded-circle border-0" id="sidebarToggle"></button>
+            </div>
+
+            <!-- Sidebar Message -->
+            <div class="sidebar-card d-none d-lg-flex">
+                <img class="sidebar-card-illustration mb-2" src="img/undraw_rocket.svg" alt="...">
+                <p class="text-center mb-2"><strong>Receiver APP</strong> is packed with features, components, and more!</p>
+                <a class="btn btn-success btn-sm" href="https://github.com/MiriamTom">Android Application</a>
+            </div>
+
+        </ul>
+        <!-- End of Sidebar -->
+
+        <!-- Content Wrapper -->
+        <div id="content-wrapper" class="d-flex flex-column">
+
+            <!-- Main Content -->
+            <div id="content">
+
+                <!-- Topbar -->
+                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+
+                    <!-- Sidebar Toggle (Topbar) -->
+                    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
+                        <i class="fa fa-bars"></i>
+                    </button>
+
+
+
+                    <!-- Topbar Navbar -->
+                    <ul class="navbar-nav ml-auto">
+
+                        <!-- Nav Item - Search Dropdown (Visible Only XS) -->
+                        <li class="nav-item dropdown no-arrow d-sm-none">
+                            <a class="nav-link dropdown-toggle" href="#" id="searchDropdown" role="button"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="fas fa-search fa-fw"></i>
+                            </a>
+                            <!-- Dropdown - Messages -->
+                            <div class="dropdown-menu dropdown-menu-right p-3 shadow animated--grow-in"
+                                aria-labelledby="searchDropdown">
+                                <form class="form-inline mr-auto w-100 navbar-search">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control bg-light border-0 small"
+                                            placeholder="Search for..." aria-label="Search"
+                                            aria-describedby="basic-addon2">
+                                        <div class="input-group-append">
+                                            <button class="btn btn-primary" type="button">
+                                                <i class="fas fa-search fa-sm"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </li>
+
+                        <div class="topbar-divider d-none d-sm-block"></div>
+
+                        <!-- Nav Item - User Information -->
+                        <li class="nav-item dropdown no-arrow">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">Douglas McGee</span>
+                                <img class="img-profile rounded-circle"
+                                    src="img/undraw_profile.svg">
+                            </a>
+                            <!-- Dropdown - User Information -->
+                            <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"
+                                aria-labelledby="userDropdown">
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-user fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    Profile
+                                </a>
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-cogs fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    Settings
+                                </a>
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-list fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    Activity Log
+                                </a>
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal">
+                                    <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    Logout
+                                </a>
+                            </div>
+                        </li>
+
+                    </ul>
+
+                </nav>
+                <!-- End of Topbar -->
+
+                <!-- Begin Page Content -->
+                <div class="container-fluid">
+
+                    <!-- Page Heading -->
+                    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+                        <h1 class="h3 mb-0 text-gray-800">Connected Devices</h1>
+                    </div>
+
+                    <!-- Content Row -->
+                    <div class="row">
+                        <!-- Left Column - Devices -->
+                        <div class="col-xl-8 col-lg-7">
+                            <div class="row" id="cardContainer">
+                                <!-- Cards will be dynamically added here -->
+                            </div>
+                        </div>
+
+                        <!-- Right Column - Map -->
+                        <div class="col-xl-4 col-lg-5">
+                            <div class="map-container sticky-top" style="top: 20px;">
+                                <div class="map-title">Device Location</div>
+                                <div id="map"></div>
+                                <div class="user-list" id="userList">
+                                    <div class="text-muted small">Users</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- /.container-fluid -->
+
+            </div>
+            <!-- End of Main Content -->
+        </div>
+        <!-- End of Content Wrapper -->
+
+    </div>
+    <!-- End of Page Wrapper -->
+
+    <!-- Scroll to Top Button-->
+    <a class="scroll-to-top rounded" href="#page-top">
+        <i class="fas fa-angle-up"></i>
+    </a>
+
+    <!-- Logout Modal-->
+    <div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Ready to Leave?</h5>
+                    <button class="close" type="button" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">×</span>
+                    </button>
+                </div>
+                <div class="modal-body">Select "Logout" below if you are ready to end your current session.</div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
+                    <a class="btn btn-primary" href="login.html">Logout</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap core JavaScript-->
+    <script src="vendor/jquery/jquery.min.js"></script>
+    <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Core plugin JavaScript-->
+    <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
+
+    <!-- Custom scripts for all pages-->
+    <script src="js/sb-admin-2.min.js"></script>
+
+    <!-- Page level plugins -->
+    <script src="vendor/chart.js/Chart.min.js"></script>
+
+    <!-- Page level custom scripts -->
+    <script src="js/demo/chart-area-demo.js"></script>
+    <script src="js/demo/chart-pie-demo.js"></script>
+
+    <!-- MQTT and Map Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+    <script>
+        let connected_flag = 0;
+        let mqtt;
+        let map;
+        let markers = {};
+        let locationHistory = {};
+        let userColors = {
+            "Miriam": "#4e73df",
+            "Ria": "#1cc88a"
+        };
+        
+        // Initialize the map
+        function initMap() {
+            map = L.map('map').setView([0, 0], 2);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            // Add scale control
+            L.control.scale().addTo(map);
+        }
+
+        // Update map with new location data
+        function updateMap(locationData, user) {
+            const { latitude, longitude, accuracy, timestamp, heart_rate } = locationData;
+            
+            // Create or update marker
+            if (!markers[user]) {
+                createNewMarker(user, latitude, longitude);
+                addToUserList(user);
+            }
+            
+            // Update marker position and data
+            updateMarker(user, latitude, longitude, accuracy, timestamp, heart_rate);
+            
+            // Update location history
+            updateLocationHistory(user, latitude, longitude, timestamp);
+            
+            // Update user list
+            updateUserList(user, timestamp);
+        }
+        
+        // Create a new marker for a user
+        function createNewMarker(user, lat, lng) {
+            const icon = L.divIcon({
+                className: `user-marker marker-${user.toLowerCase()}`,
+                html: `<div class="marker-pin"></div><span class="marker-text">${user}</span>`,
+                iconSize: [30, 42],
+                iconAnchor: [15, 42]
+            });
+            
+            markers[user] = L.marker([lat, lng], { 
+                icon: icon,
+                riseOnHover: true
+            }).addTo(map);
+            
+            // Add pulse animation to new markers
+            markers[user]._icon.classList.add('pulse');
+            setTimeout(() => {
+                if (markers[user] && markers[user]._icon) {
+                    markers[user]._icon.classList.remove('pulse');
+                }
+            }, 3000);
+        }
+        
+        // Update existing marker
+        function updateMarker(user, lat, lng, accuracy, timestamp, heart_rate) {
+            // Update position
+            markers[user].setLatLng([lat, lng]);
+            
+            // Update popup content
+            const popupContent = `
+                <div style="min-width: 200px;">
+                    <h5 style="margin-bottom: 5px; color: ${userColors[user]}">${user}</h5>
+                    <div><strong>Last Update:</strong> ${new Date(timestamp).toLocaleString()}</div>
+                    ${heart_rate ? `<div><strong>Heart Rate:</strong> ${heart_rate} bpm</div>` : ''}
+                    <div><strong>Coordinates:</strong> ${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
+                    ${accuracy ? `<div><strong>Accuracy:</strong> ${accuracy.toFixed(1)} meters</div>` : ''}
+                    <button class="btn btn-sm btn-primary mt-2" onclick="showUserPath('${user}')">Show Path</button>
+                </div>
+            `;
+            
+            if (markers[user].getPopup()) {
+                markers[user].getPopup().setContent(popupContent);
+            } else {
+                markers[user].bindPopup(popupContent);
+            }
+            
+            // Update accuracy circle
+            if (accuracy) {
+                if (!markers[user].accuracyCircle) {
+                    markers[user].accuracyCircle = L.circle([lat, lng], {
+                        color: userColors[user],
+                        fillColor: userColors[user],
+                        fillOpacity: 0.2,
+                        radius: accuracy
+                    }).addTo(map);
+                } else {
+                    markers[user].accuracyCircle.setLatLng([lat, lng]);
+                    markers[user].accuracyCircle.setRadius(accuracy);
+                }
+            }
+        }
+        
+        // Update location history
+        function updateLocationHistory(user, lat, lng, timestamp) {
+            if (!locationHistory[user]) {
+                locationHistory[user] = [];
+            }
+            
+            locationHistory[user].push({
+                lat: lat,
+                lng: lng,
+                time: timestamp
+            });
+            
+            // Keep only the last 50 locations
+            if (locationHistory[user].length > 50) {
+                locationHistory[user].shift();
+            }
+        }
+        
+        // Add user to the sidebar list
+        function addToUserList(user) {
+            const userList = document.getElementById('userList');
+            
+            // Safely check if we have the "no users" message
+            if (userList.firstChild && 
+                userList.firstChild.classList && 
+                userList.firstChild.classList.contains('text-muted')) {
+                userList.removeChild(userList.firstChild);
+            }
+            
+            // Check if user already exists in list
+            if (!document.getElementById(`user-${user}`)) {
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                userItem.id = `user-${user}`;
+                userItem.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fas fa-user mr-2" style="color: ${userColors[user] || '#4e73df'}"></i>
+                            <strong>${user}</strong>
+                        </div>
+                        <span class="last-update">Just now</span>
+                    </div>
+                `;
+                
+                // Add click handler to center map on user
+                userItem.addEventListener('click', () => {
+                    if (markers[user]) {
+                        map.setView(markers[user].getLatLng(), 15);
+                        markers[user].openPopup();
+                    }
+                });
+                
+                userList.appendChild(userItem);
+            }
+        }
+        
+        // Update user in the sidebar list
+        function updateUserList(user, timestamp) {
+            const userElement = document.getElementById(`user-${user}`);
+            if (userElement) {
+                const timeDiff = Math.floor((Date.now() - timestamp) / 1000);
+                let timeText;
+                
+                if (timeDiff < 60) {
+                    timeText = `${timeDiff} seconds ago`;
+                } else if (timeDiff < 3600) {
+                    timeText = `${Math.floor(timeDiff / 60)} minutes ago`;
+                } else {
+                    timeText = new Date(timestamp).toLocaleTimeString();
+                }
+                
+                userElement.querySelector('.last-update').textContent = timeText;
+                
+                // Highlight the active user
+                document.querySelectorAll('.user-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                userElement.classList.add('active');
+                
+                // Scroll to show this user if not visible
+                userElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+        
+        // Show user's path on the map
+        window.showUserPath = function(user) {
+            // Remove existing path if any
+            if (markers[user] && markers[user].path) {
+                map.removeLayer(markers[user].path);
+            }
+            
+            if (locationHistory[user] && locationHistory[user].length > 1) {
+                const pathCoords = locationHistory[user].map(point => [point.lat, point.lng]);
+                markers[user].path = L.polyline(pathCoords, {
+                    color: userColors[user],
+                    weight: 3,
+                    opacity: 0.7,
+                    smoothFactor: 1
+                }).addTo(map);
+                
+                // Fit map to show the entire path
+                map.fitBounds(markers[user].path.getBounds());
+                
+                // Add a temporary highlight to the path
+                markers[user].path.bringToFront();
+                setTimeout(() => {
+                    if (markers[user] && markers[user].path) {
+                        markers[user].path.bringToBack();
+                    }
+                }, 2000);
+            } else {
+                alert(`${user} doesn't have enough location history yet.`);
+            }
+        };
+
+        // Function to handle connection loss
+        function onConnectionLost(responseObject) {
+            if (responseObject.errorCode !== 0) {
+                console.log("Connection Lost: " + responseObject.errorMessage);
+            }
+            connected_flag = 0;
+            
+            // Try to reconnect after 5 seconds
+            setTimeout(MQTTconnect, 5000);
+        }
+
+        // Function to handle connection failure
+        function onFailure(message) {
+            console.log("Connection Failed: " + message.errorMessage);
+            
+            // Try to reconnect after 5 seconds
+            setTimeout(MQTTconnect, 5000);
+        }
+
+        // Function to handle successful connection
+        function onConnect() {
+            connected_flag = 1;
+            console.log("Connected to MQTT Broker");
+            // Subscribe to the specific topics
+            mqtt.subscribe("BP/GB/realtime-hr/#"); // For heart rate data
+            mqtt.subscribe("BP/GB/location/#");    // For location data
+        }
+
+        // Function to handle incoming messages
+        function onMessageArrived(r_message) {
+            const topic = r_message.destinationName;
+            const payload = r_message.payloadString;
+    
+            try {
+                const data = JSON.parse(payload);
+                console.log("Received message on topic:", topic);
+                console.log("Payload:", data);
+                
+                // Extract information based on topic structure
+                const parts = topic.split('/');
+                let user = "Unknown";
+                let device = "Unknown";
+                
+                if (topic.startsWith("BP/GB/realtime-hr/")) {
+                    // Heart rate data: BP/GB/realtime-hr/Miriam-user/HUAWEI_WATCH_HR-0AC
+                    user = parts[3].replace('-user', '');
+                    device = parts[4];
+                    
+                    // Create data structure for the card
+                    const cardData = {
+                        user: user,
+                        device: device,
+                        heartRate: data.heart_rate || "N/A",
+                        timestamp: data.timestamp || Date.now()
+                    };
+    
+                    updateOrCreateCard(cardData);
+                    
+                } else if (topic.startsWith("BP/GB/location/")) {
+                    // Location data: BP/GB/location/Miriam or BP/GB/location/Ria
+                    user = parts[3];
+                    
+                    // Update the map with location data
+                    updateMap(data, user);
+                }
+                
+                // Only proceed if we have a valid user
+                if (user !== "Unknown") {
+                    // Initialize color for this user if not set
+                    if (!userColors[user]) {
+                        const colors = Object.values(userColors);
+                        const availableColors = ['#4e73df', '#1cc88a', '#f6c23e', '#e74a3b', '#36b9cc']
+                            .filter(c => !colors.includes(c));
+                        userColors[user] = availableColors[0] || '#4e73df';
+                    }
+                    
+                    addToUserList(user);
+                    updateUserList(user, data.timestamp || Date.now());
+                }
+                
+            } catch (error) {
+                console.error("Failed to parse JSON payload:", error);
+                console.log("Raw Payload:", payload);
+                
+                // Try to handle as plain text if JSON parsing fails
+                if (typeof payload === 'string') {
+                    console.log("Attempting to process as plain text...");
+                    // Add your plain text processing logic here if needed
+                }
+            }
+        }
+        // Function to update or create a card
+        function updateOrCreateCard(data) {
+            const { user = "Unknown", device = "Unknown", heartRate = "N/A" } = data;
+
+            // Create a unique ID combining user and device
+            const cardId = `card-${user}-${device}`.replace(/\s+/g, '-');
+            
+            // Check if a card for this user/device already exists
+            let card = document.getElementById(cardId);
+            if (!card) {
+                // Create a new card if it doesn't exist
+                card = document.createElement("div");
+                card.className = "col-xl-3 col-md-6 mb-4";
+                card.id = cardId;
+                card.innerHTML = `
+                    <div class="card border-left-primary shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                        User Name
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800" id="userName-${cardId}">
+                                        ${user}
+                                    </div>
+
+                                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1 mt-2">
+                                        Device Name
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800" id="deviceName-${cardId}">
+                                        ${device}
+                                    </div>
+
+                                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1 mt-2">
+                                        Heart Rate
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800" id="heartRate-${cardId}">
+                                        ${heartRate} bpm
+                                    </div>
+                                    
+                                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1 mt-2">
+                                        Last Update
+                                    </div>
+                                    <div class="h6 mb-0 font-weight-bold text-gray-600" id="timestamp-${cardId}">
+                                        ${new Date(data.timestamp).toLocaleTimeString()}
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="fas fa-heartbeat fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById("cardContainer").appendChild(card);
+            } else {
+                // Update the existing card
+                document.getElementById(`userName-${cardId}`).innerText = user;
+                document.getElementById(`deviceName-${cardId}`).innerText = device;
+                document.getElementById(`heartRate-${cardId}`).innerText = `${heartRate} bpm`;
+                if (data.timestamp) {
+                    document.getElementById(`timestamp-${cardId}`).innerText = 
+                        new Date(data.timestamp).toLocaleTimeString();
+                }
+            }
+        }
+
+        // Function to connect to MQTT broker
+        function MQTTconnect() {
+            if (connected_flag !== 0) return;
+
+            const websocket = "test.mosquitto.org"; // MQTT broker address
+            const port = 8080; // WebSocket port for test.mosquitto.org
+
+            const options = {
+                timeout: 20,
+                useSSL: false,
+                onSuccess: onConnect,
+                onFailure: onFailure,
+                keepAliveInterval: 10,
+            };
+
+            const clientId = `receiver-${Math.floor(Math.random() * 10000)}`;
+            mqtt = new Paho.MQTT.Client(websocket, port, clientId);
+
+            mqtt.onConnectionLost = onConnectionLost;
+            mqtt.onMessageArrived = onMessageArrived;
+            mqtt.connect(options);
+        }
+
+        // Connect to MQTT broker and initialize map when the page loads
+        window.onload = function() {
+            initMap();
+            MQTTconnect();
+        };
+    </script>
+</body>
+</html>

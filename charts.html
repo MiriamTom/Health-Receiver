@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Monitoring Dashboard</title>
+    <!-- Custom fonts -->
+    <link href="vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet">
+    <!-- Custom styles -->
+    <link href="css/sb-admin-2.min.css" rel="stylesheet">
+    <!-- Plotly.js for chart rendering -->
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <!-- Flatpickr for calendar -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <style>
+        .chart-container {
+            width: 100%;
+            height: 400px;
+            margin-bottom: 30px;
+        }
+        .info-card {
+            background-color: #f8f9fa;
+            border-left: 4px solid #4e73df;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .device-info {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .data-section {
+            display: none; /* Hidden until device and date selected */
+        }
+        .no-data-message {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+        .ecg-line {
+            stroke: #e74a3b;
+            stroke-width: 2px;
+        }
+        .high-stress {
+            background-color: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        .normal-stress {
+            background-color: #d1e7dd;
+            border-left-color: #28a745;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .loading-content {
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .loading-text {
+            margin-top: 15px;
+            font-weight: bold;
+            color: #4e73df;
+        }
+        
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+
+         /* Pridané pre loading indicator */
+         .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .loading-content {
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .loading-text {
+            margin-top: 15px;
+            font-weight: bold;
+            color: #4e73df;
+        }
+        
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+        
+        .data-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            z-index: 1000;
+            font-size: 0.9em;
+            border-left: 4px solid #4e73df;
+        }
+        
+        #loadedCount {
+            font-weight: bold;
+            color: #4e73df;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body id="page-top">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-content">
+            <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">Loading...</span>
+            </div>
+            <p class="loading-text">Loading data from Firestore...</p>
+        </div>
+    </div>
+
+    <div class="data-status" id="dataStatus">
+        <span id="loadedCount">0</span> záznamov načítaných
+        <div class="progress mt-2" style="height: 5px;">
+            <div id="loadProgress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+        </div>
+        <span id="loadingStatus" class="small text-muted"></span> <!-- Pridané -->
+        <button id="loadMoreBtn" class="btn btn-primary mt-2">
+            Načítať staršie záznamy
+        </button>
+    </div>
+    
+
+<!-- Page Wrapper -->
+<div id="wrapper">
+
+    <!-- Sidebar -->
+    <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+
+        <!-- Sidebar - Brand -->
+        <a class="sidebar-brand d-flex align-items-center justify-content-center" href="index.html">
+            <div class="sidebar-brand-icon rotate-n-15">
+                <i class="fas fa-laugh-wink"></i>
+            </div>
+            <div class="sidebar-brand-text mx-3">Health Receiver <sup>1</sup></div>
+        </a>
+
+        <!-- Divider -->
+        <hr class="sidebar-divider my-0">
+
+        <!-- Nav Item - Dashboard -->
+        <li class="nav-item active">
+            <a class="nav-link" href="index.html">
+                <i class="fas fa-fw fa-tachometer-alt"></i>
+                <span>Dashboard</span></a>
+        </li>
+
+        <!-- Divider -->
+        <hr class="sidebar-divider">
+
+        <!-- Heading -->
+        <div class="sidebar-heading">
+            Interface
+        </div>
+
+        <!-- Nav Item - Pages Collapse Menu -->
+        <li class="nav-item">
+            <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTwo"
+               aria-expanded="true" aria-controls="collapseTwo">
+                <i class="fas fa-fw fa-cog"></i>
+                <span>Components</span>
+            </a>
+            <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
+                <div class="bg-white py-2 collapse-inner rounded">
+                    <h6 class="collapse-header">Custom Components:</h6>
+                    <a class="collapse-item" href="utilities-other.html">Data scheme</a>
+                </div>
+            </div>
+        </li>
+
+        <!-- Nav Item - Utilities Collapse Menu -->
+        <li class="nav-item">
+            <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseUtilities"
+               aria-expanded="true" aria-controls="collapseUtilities">
+                <i class="fas fa-fw fa-wrench"></i>
+                <span>RAW DATA </span>
+            </a>
+            <div id="collapseUtilities" class="collapse" aria-labelledby="headingUtilities"
+                 data-parent="#accordionSidebar">
+                <div class="bg-white py-2 collapse-inner rounded">
+                    <h6 class="collapse-header">RAW DATA </h6>
+                    <a class="collapse-item" href="utilities-color.html">RAW JSON</a>
+                    <a class="collapse-item" href="utilities-border.html">RAW tables </a>
+                </div>
+            </div>
+        </li>
+
+        <!-- Divider -->
+        <hr class="sidebar-divider">
+
+        <!-- Heading -->
+        <div class="sidebar-heading">
+            Addons
+        </div>
+
+        <!-- Nav Item - Charts -->
+        <li class="nav-item">
+            <a class="nav-link" href="charts.html">
+                <i class="fas fa-fw fa-chart-area"></i>
+                <span>Charts</span></a>
+        </li>
+
+        <!-- Nav Item - Tables -->
+        <li class="nav-item">
+            <a class="nav-link" href="tables.html">
+                <i class="fas fa-fw fa-table"></i>
+                <span>Daily Summary</span></a>
+        </li>
+
+        <!-- Divider -->
+        <hr class="sidebar-divider d-none d-md-block">
+
+        <!-- Sidebar Toggler (Sidebar) -->
+        <div class="text-center d-none d-md-inline">
+            <button class="rounded-circle border-0" id="sidebarToggle"></button>
+        </div>
+
+        <!-- Sidebar Message -->
+        <div class="sidebar-card d-none d-lg-flex">
+            <img class="sidebar-card-illustration mb-2" src="img/undraw_rocket.svg" alt="...">
+            <p class="text-center mb-2"><strong>Receiver APP</strong> is packed with features, components, and more!</p>
+            <a class="btn btn-success btn-sm" href="https://github.com/MiriamTom">Android Application</a>
+        </div>
+
+    </ul>
+    <!-- End of Sidebar -->
+
+    <!-- Content Wrapper -->
+    <div id="content-wrapper" class="d-flex flex-column">
+
+        <!-- Main Content -->
+        <div id="content">
+
+            <!-- Topbar -->
+            <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+
+                <!-- Sidebar Toggle (Topbar) -->
+                <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
+                    <i class="fa fa-bars"></i>
+                </button>
+
+
+
+                <!-- Topbar Navbar -->
+                <ul class="navbar-nav ml-auto">
+
+                    <!-- Nav Item - Search Dropdown (Visible Only XS) -->
+                    <li class="nav-item dropdown no-arrow d-sm-none">
+                        <a class="nav-link dropdown-toggle" href="#" id="searchDropdown" role="button"
+                           data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <i class="fas fa-search fa-fw"></i>
+                        </a>
+                        <!-- Dropdown - Messages -->
+                        <div class="dropdown-menu dropdown-menu-right p-3 shadow animated--grow-in"
+                             aria-labelledby="searchDropdown">
+                            <form class="form-inline mr-auto w-100 navbar-search">
+                                <div class="input-group">
+                                    <input type="text" class="form-control bg-light border-0 small"
+                                           placeholder="Search for..." aria-label="Search"
+                                           aria-describedby="basic-addon2">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-primary" type="button">
+                                            <i class="fas fa-search fa-sm"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </li>
+
+                    <div class="topbar-divider d-none d-sm-block"></div>
+
+                    <!-- Nav Item - User Information -->
+                    <li class="nav-item dropdown no-arrow">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
+                           data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <span class="mr-2 d-none d-lg-inline text-gray-600 small">Douglas McGee</span>
+                            <img class="img-profile rounded-circle"
+                                 src="img/undraw_profile.svg">
+                        </a>
+                        <!-- Dropdown - User Information -->
+                        <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"
+                             aria-labelledby="userDropdown">
+                            <a class="dropdown-item" href="#">
+                                <i class="fas fa-user fa-sm fa-fw mr-2 text-gray-400"></i>
+                                Profile
+                            </a>
+                            <a class="dropdown-item" href="#">
+                                <i class="fas fa-cogs fa-sm fa-fw mr-2 text-gray-400"></i>
+                                Settings
+                            </a>
+                            <a class="dropdown-item" href="#">
+                                <i class="fas fa-list fa-sm fa-fw mr-2 text-gray-400"></i>
+                                Activity Log
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal">
+                                <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
+                                Logout
+                            </a>
+                        </div>
+                    </li>
+
+                </ul>
+
+            </nav>
+            <!-- End of Topbar -->
+
+                <!-- Begin Page Content -->
+                <div class="container-fluid">
+                    <!-- Page Heading -->
+                    <h1 class="h3 mb-4 text-gray-800">Health Monitoring Dashboard</h1>
+                    
+                    <!-- Selection Panel -->
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <div class="card shadow mb-4">
+                                <div class="card-header py-3">
+                                    <h6 class="m-0 font-weight-bold text-primary">Select Device and Date</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="deviceSelect">Select Device</label>
+                                                <select id="deviceSelect" class="form-control">
+                                                    <option value="">-- Select a device --</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="dateFilter">Select Date</label>
+                                                <input type="text" id="dateFilter" class="form-control" placeholder="Select a date" disabled>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="deviceInfo" class="device-info mt-3" style="display:none;">
+                                        <h5><i class="fas fa-info-circle"></i> Device Information</h5>
+                                        <div id="deviceDetails"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Data Display Section (shown after selection) -->
+                    <div id="dataSection" class="data-section">
+                        <!-- Info Cards -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="info-card">
+                                    <h5><i class="fas fa-heartbeat"></i> About Heart Rate</h5>
+                                    <p>Normal resting heart rate: 60-100 bpm. Values of 255 indicate the device was not being worn.</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-card">
+                                    <h5><i class="fas fa-brain"></i> About Stress Levels</h5>
+                                    <p>Stress levels range from 0-100. Values above 50 indicate high stress load.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="info-card">
+                                    <h5><i class="fas fa-lungs"></i> About SpO2</h5>
+                                    <p>Normal blood oxygen levels are 95-100%. Values below 90% may indicate health issues.</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-card">
+                                    <h5><i class="fas fa-walking"></i> About Step Count</h5>
+                                    <p>Recommended daily steps: 8,000-10,000 for general health benefits.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Charts Row -->
+                        <div class="row">
+                            <!-- Heart Rate Chart -->
+                            <div class="col-lg-6">
+                                <div class="card shadow mb-4">
+                                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                                        <h6 class="m-0 font-weight-bold text-primary">Heart Rate (ECG-style)</h6>
+                                        <span id="heartRateInfo" class="badge badge-info"></span>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="chart-container" id="heartRateChart"></div>
+                                        <div id="heartRateNotes" class="mt-2 small text-muted"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Stress Level Chart -->
+                            <div class="col-lg-6">
+                                <div class="card shadow mb-4">
+                                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                                        <h6 class="m-0 font-weight-bold text-primary">Stress Level</h6>
+                                        <span id="stressInfo" class="badge badge-info"></span>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="chart-container" id="stressChart"></div>
+                                        <div id="stressNotes" class="mt-2 small text-muted"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- SpO2 Chart -->
+                            <div class="col-lg-6">
+                                <div class="card shadow mb-4">
+                                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                                        <h6 class="m-0 font-weight-bold text-primary">Blood Oxygen (SpO2)</h6>
+                                        <span id="spO2Info" class="badge badge-info"></span>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="chart-container" id="spO2Chart"></div>
+                                        <div id="spO2Notes" class="mt-2 small text-muted"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Steps Count Chart -->
+                            <div class="col-lg-6">
+                                <div class="card shadow mb-4">
+                                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                                        <h6 class="m-0 font-weight-bold text-primary">Step Count</h6>
+                                        <span id="stepsInfo" class="badge badge-info"></span>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="chart-container" id="stepsChart"></div>
+                                        <div id="stepsNotes" class="mt-2 small text-muted"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- End of Page Content -->
+            </div>
+            <!-- End of Main Content -->
+        </div>
+        <!-- End of Content Wrapper -->
+    </div>
+    <!-- End of Page Wrapper -->
+
+    <!-- Bootstrap core JavaScript-->
+    <script src="vendor/jquery/jquery.min.js"></script>
+    <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
+    <script src="js/sb-admin-2.min.js"></script>
+
+   <script>
+
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+    loadMoreBtn.addEventListener('click', loadMoreData);
+
+    const loadingStatus = document.getElementById('loadingStatus');
+
+        // Firebase Configuration
+        const firebaseConfig = {
+            authDomain: "bachelor-thesis-9bd4c.firebaseapp.com",
+            projectId: "bachelor-thesis-9bd4c",
+            storageBucket: "bachelor-thesis-9bd4c.appspot.com",
+        };
+
+        const decompressWorker = new Worker('worker-decompress.js');
+        let workerCallback = null;
+        
+        // Spracovanie správ od workera
+        decompressWorker.onmessage = (e) => {
+            if (e.data.action === 'decompress-result' && workerCallback) {
+                workerCallback(null, e.data.result);
+            } else if (e.data.action === 'decompress-error' && workerCallback) {
+                workerCallback(new Error(e.data.error), null);
+            }
+        };
+        async function decompressInWorker(compressedData) {
+            return new Promise((resolve, reject) => {
+                workerCallback = (err, result) => {
+                    if (err) return reject(err);
+                    resolve(result);
+                };
+                
+                decompressWorker.postMessage({
+                    action: 'decompress',
+                    data: compressedData
+                });
+            });
+        }
+        
+        // Upravená funkcia processDataBatch
+        async function processDataBatchOptimized(snapshot) {
+            const decompressPromises = [];
+            
+            // Vytvorenie promise pre každý dokument
+            snapshot.forEach(doc => {
+                decompressPromises.push(decompressInWorker(doc.data().data));
+            });
+            
+            // Paralelné spracovanie všetkých dokumentov
+            const batchDataArrays = await Promise.all(decompressPromises);
+            const batchData = batchDataArrays.flat().filter(Boolean);
+            
+            // Spracovanie dát
+            const deviceUpdates = {};
+            
+            batchData.forEach(item => {
+                // Spracovanie užívateľov
+                if (item.table_name === "USER" && item._id) {
+                    userData[item._id] = item;
+                }
+                
+                // Spracovanie zariadení
+                if (item.table_name === "DEVICE") {
+                    if (!allDeviceData[item._id]) {
+                        allDeviceData[item._id] = {
+                            id: item._id,
+                            name: item.NAME,
+                            model: item.MODEL,
+                            manufacturer: item.MANUFACTURER,
+                            userId: item.USER_ID,
+                            data: []
+                        };
+                    }
+                }
+                
+                // Spracovanie dát zariadení
+                if (item.DEVICE_ID) {
+                    if (!deviceUpdates[item.DEVICE_ID]) {
+                        deviceUpdates[item.DEVICE_ID] = [];
+                    }
+                    deviceUpdates[item.DEVICE_ID].push(item);
+                }
+            });
+            
+            // Hromadná aktualizácia dát zariadení
+            for (const deviceId in deviceUpdates) {
+                if (!allDeviceData[deviceId]) {
+                    allDeviceData[deviceId] = { data: [] };
+                }
+                allDeviceData[deviceId].data.push(...deviceUpdates[deviceId]);
+            }
+            
+            // Jednotná aktualizácia UI
+            populateDeviceDropdown();
+        }
+        function showLoading() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+        
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        // Initialize Firebase
+        const firebaseInitStart = performance.now();
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const firebaseInitEnd = performance.now();
+        console.log(`Firebase initialization time: ${(firebaseInitEnd - firebaseInitStart).toFixed(2)} ms`);
+
+        // Global variables
+        let allDeviceData = {};
+        let userData = {};
+        let currentDeviceId = null;
+        let currentDate = null;
+        let lastVisible = null;
+        let isLoading = false;
+        const BATCH_SIZE = 50;
+
+        function showLoading() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+        
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+        
+
+        // Main initialization
+        async function initializeApp() {
+            const appInitStart = performance.now();
+
+            updateDataStatus();
+            showLoading();
+            try {
+                await loadDevicesAndUsers();
+                
+                setupEventListeners();
+            } catch (error) {
+                console.error("Initialization error:", error);
+                showError("Failed to initialize application. Please try again.");
+            } finally {
+                hideLoading(); // Hide loading indicator when done
+            }
+            const appInitEnd = performance.now();
+            console.log(`Total app initialization time: ${(appInitEnd - appInitStart).toFixed(2)} ms`);
+        }
+
+        async function loadInitialData() {
+            try {
+                const query = db.collection("databases")
+                             .orderBy("timestamp", "desc")
+                             .limit(BATCH_SIZE);
+    
+                const snapshot = await query.get();
+                
+                if (snapshot.empty) {
+                    showMessage("Žiadne dáta na načítanie");
+                    return;
+                }
+    
+                lastVisible = snapshot.docs[snapshot.docs.length - 1];
+                await processDataBatch(snapshot);
+                
+                
+                // Enable load more button if there might be more data
+                if (snapshot.docs.length === BATCH_SIZE) {
+                    loadMoreBtn.style.display = 'block';
+                }
+            } catch (error) {
+                console.error("Error loading initial data:", error);
+                throw error;
+            }
+        }
+
+        async function processDataBatch(snapshot) {
+            const batchData = [];
+            
+            snapshot.forEach(doc => {
+                const jsonData = decompressAndParse(doc.data().data);
+                if (jsonData) batchData.push(...jsonData);
+            });
+        
+            // Spracovanie užívateľov
+            batchData.filter(item => item.table_name === "USER")
+                   .forEach(user => {
+                       if (user._id) userData[user._id] = user;
+                   });
+        
+            // Spracovanie metadát zariadení PRVÉ
+            batchData.filter(item => item.table_name === "DEVICE")
+                   .forEach(device => {
+                       if (!allDeviceData[device._id]) {
+                           allDeviceData[device._id] = {
+                               id: device._id,
+                               name: device.NAME,
+                               model: device.MODEL,
+                               manufacturer: device.MANUFACTURER,
+                               userId: device.USER_ID,
+                               data: []
+                           };
+                       }
+                   });
+        
+            // Spracovanie dát zariadení
+            batchData.filter(item => item.DEVICE_ID)
+                   .forEach(item => {
+                       if (!allDeviceData[item.DEVICE_ID]) {
+                           allDeviceData[item.DEVICE_ID] = { 
+                               ...allDeviceData[item.DEVICE_ID] || {},
+                               data: [] 
+                           };
+                       }
+                       allDeviceData[item.DEVICE_ID].data.push(item);
+                   });
+        
+            // Aktualizácia UI
+            populateDeviceDropdown();
+            updateDataStatus(); 
+        }
+        // Load more data handler
+        async function loadMoreData() {
+            if (isLoading) return;
+            
+            isLoading = true;
+            loadMoreBtn.disabled = true;
+            loadingStatus.textContent = "Načítavam ďalšie dáta...";
+            showLoading();
+            
+            try {
+                // Pridané meranie času
+                const loadStart = performance.now();
+                
+                let query = db.collection("databases")
+                            .orderBy("timestamp", "desc")
+                            .limit(BATCH_SIZE);
+                
+                if (lastVisible) {
+                    query = query.startAfter(lastVisible);
+                }
+        
+                const snapshot = await query.get();
+                console.log(`Firestore query time: ${performance.now() - loadStart}ms`);
+                
+                if (snapshot.empty) {
+                    loadMoreBtn.style.display = 'none';
+                    loadingStatus.textContent = "Všetky dáta načítané";
+                    return;
+                }
+        
+                lastVisible = snapshot.docs[snapshot.docs.length - 1];
+                
+                // Optimalizované spracovanie dát
+                const processStart = performance.now();
+                await processDataBatchOptimized(snapshot);
+                console.log(`Processing time: ${performance.now() - processStart}ms`);
+                
+                updateDataStatus();
+                
+                if (snapshot.docs.length < BATCH_SIZE) {
+                    loadMoreBtn.style.display = 'none';
+                    loadingStatus.textContent = "Všetky dáta načítané";
+                } else {
+                    loadingStatus.textContent = `Načítané, môžete načítať ďalších ${BATCH_SIZE} záznamov`;
+                }
+            } catch (error) {
+                console.error("Chyba pri načítavaní:", error);
+                loadingStatus.textContent = "Chyba pri načítavaní: " + error.message;
+            } finally {
+                isLoading = false;
+                loadMoreBtn.disabled = false;
+                hideLoading();
+            }
+        }
+
+        async function processDataBatchOptimized(snapshot) {
+            const batchStart = performance.now();
+            
+            // Použitie paralelného spracovania
+            const processingPromises = snapshot.docs.map(doc => {
+                return new Promise(resolve => {
+                    decompressWorker.postMessage({
+                        action: "decompress",
+                        data: doc.data().data
+                    });
+                    
+                    decompressWorker.onmessage = (e) => {
+                        if (e.data.action === "decompress-result") {
+                            resolve(e.data.result);
+                        }
+                    };
+                });
+            });
+        
+            const results = await Promise.all(processingPromises);
+            const batchData = results.flat().filter(Boolean);
+            
+            // Optimalizované spracovanie dát
+            const deviceUpdates = {};
+            const userUpdates = {};
+            
+            batchData.forEach(item => {
+                if (item.table_name === "USER" && item._id) {
+                    userUpdates[item._id] = item;
+                }
+                
+                if (item.table_name === "DEVICE") {
+                    if (!allDeviceData[item._id]) {
+                        allDeviceData[item._id] = {
+                            id: item._id,
+                            name: item.NAME,
+                            model: item.MODEL,
+                            manufacturer: item.MANUFACTURER,
+                            userId: item.USER_ID,
+                            data: []
+                        };
+                    }
+                }
+                
+                if (item.DEVICE_ID) {
+                    if (!deviceUpdates[item.DEVICE_ID]) {
+                        deviceUpdates[item.DEVICE_ID] = [];
+                    }
+                    deviceUpdates[item.DEVICE_ID].push(item);
+                }
+            });
+            
+            // Hromadná aktualizácia dát
+            Object.assign(userData, userUpdates);
+            
+            for (const deviceId in deviceUpdates) {
+                if (!allDeviceData[deviceId]) {
+                    allDeviceData[deviceId] = {
+                        id: deviceId,
+                        data: []
+                    };
+                }
+                allDeviceData[deviceId].data = [...(allDeviceData[deviceId].data || []), ...deviceUpdates[deviceId]];
+            }
+            
+            populateDeviceDropdown();
+            console.log(`Batch processing time: ${performance.now() - batchStart}ms`);
+        }
+        
+        function updateDataStatus() {
+            const loadedCountEl = document.getElementById('loadedCount');
+            const progressBar = document.getElementById('loadProgress');
+            
+            if (!loadedCountEl || !progressBar) return;
+        
+            // Spočítame všetky záznamy
+            let totalRecords = 0;
+            for (const deviceId in allDeviceData) {
+                if (allDeviceData[deviceId]?.data) {
+                    totalRecords += allDeviceData[deviceId].data.length;
+                }
+            }
+        
+            loadedCountEl.textContent = totalRecords;
+            progressBar.style.width = `${Math.min(100, (totalRecords / 5000) * 100)}%`;
+        }
+
+        // Load devices and user information
+        async function loadDevicesAndUsers() {
+            const loadStart = performance.now();
+            showLoading();
+            try {
+                const firestoreStart = performance.now();
+                const [devicesSnapshot, usersSnapshot] = await Promise.all([
+                    db.collection("databases").orderBy("timestamp", "desc").limit(50).get({ source: "server" }),
+                    db.collection("databases").where("table_name", "==", "USER").get()
+                ]);
+                const firestoreEnd = performance.now();
+                console.log(`Firestore response time: ${(firestoreEnd - firestoreStart).toFixed(2)} ms`);
+
+                // Process users
+                if (!usersSnapshot.empty) {
+                    const userProcessingStart = performance.now();
+                    usersSnapshot.forEach(doc => {
+                        const data = decompressAndParse(doc.data().data);
+                        if (data && Array.isArray(data)) {
+                            data.forEach(user => {
+                                if (user._id) {
+                                    userData[user._id] = user;
+                                }
+                            });
+                        }
+                    });
+                    const userProcessingEnd = performance.now();
+                    console.log(`User data processing time: ${(userProcessingEnd - userProcessingStart).toFixed(2)} ms`);
+                }
+
+                // Process devices
+                if (devicesSnapshot.empty) {
+                    showMessage("No devices found in database.");
+                    return;
+                }
+
+                const deviceProcessingStart = performance.now();
+                devicesSnapshot.forEach(doc => {
+                    const jsonData = decompressAndParse(doc.data().data);
+                    if (jsonData) cacheDeviceData(jsonData);
+                });
+                const deviceProcessingEnd = performance.now();
+                console.log(`Device data processing time: ${(deviceProcessingEnd - deviceProcessingStart).toFixed(2)} ms`);
+
+                populateDeviceDropdown();
+            } catch (error) {
+                console.error("Error loading data:", error);
+                showError("Failed to load device data. Please check console for details.");
+            } finally {
+                hideLoading(); // Hide loading indicator when done
+            }
+            updateDataStatus();
+            const loadEnd = performance.now();
+            console.log(`Total data loading time: ${(loadEnd - loadStart).toFixed(2)} ms`);
+        }
+
+        // Decompress and parse data
+        function decompressAndParse(compressedData) {
+            if (!compressedData) return null;
+            
+            try {
+                const binaryData = atob(compressedData);
+                const uint8Array = new Uint8Array(binaryData.length);
+                
+                for (let i = 0; i < binaryData.length; i++) {
+                    uint8Array[i] = binaryData.charCodeAt(i);
+                }
+                
+                const decompressed = pako.inflate(uint8Array, { to: 'string' });
+                return JSON.parse(decompressed);
+            } catch (error) {
+                console.warn("Decompression error:", error);
+                return null;
+            }
+        }
+
+        function cacheDeviceData(jsonData) {
+            if (!Array.isArray(jsonData)) return;
+        
+            const deviceMap = {};
+            const dataByDeviceId = {};
+        
+            for (const item of jsonData) {
+                if (item.table_name === "DEVICE") {
+                    deviceMap[item._id] = {
+                        id: item._id,
+                        name: item.NAME,
+                        model: item.MODEL,
+                        manufacturer: item.MANUFACTURER,
+                        userId: item.USER_ID,
+                        data: []
+                    };
+                }
+        
+                if (item.DEVICE_ID) {
+                    if (!dataByDeviceId[item.DEVICE_ID]) {
+                        dataByDeviceId[item.DEVICE_ID] = [];
+                    }
+                    dataByDeviceId[item.DEVICE_ID].push(item);
+                }
+            }
+        
+            for (const id in deviceMap) {
+                if (dataByDeviceId[id]) {
+                    deviceMap[id].data = dataByDeviceId[id];
+                }
+                allDeviceData[id] = deviceMap[id];
+            }
+        }
+        
+
+        function populateDeviceDropdown() {
+        const deviceSelect = document.getElementById('deviceSelect');
+        if (!deviceSelect) {
+            console.error("Element deviceSelect neexistuje");
+            return;
+        }
+    
+        const currentValue = deviceSelect.value;
+        deviceSelect.innerHTML = '<option value="">-- Select a device --</option>';
+    
+        // Filtruj a zoraď zariadenia
+        const validDevices = Object.values(allDeviceData)
+            .filter(device => device && device.name)
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    
+        validDevices.forEach(device => {
+            const option = document.createElement('option');
+            option.value = device.id;
+            option.textContent = device.name + 
+                (device.userId && userData[device.userId] ? ` (${userData[device.userId].NAME})` : '');
+            deviceSelect.appendChild(option);
+        });
+    
+        if (currentValue && allDeviceData[currentValue]) {
+            deviceSelect.value = currentValue;
+        }
+    }
+
+        // Set up event listeners
+        function setupEventListeners() {
+            document.getElementById('deviceSelect').addEventListener('change', handleDeviceSelection);
+        }
+
+        // Handle device selection
+        async function handleDeviceSelection(event) {
+            const selectionStart = performance.now();
+            currentDeviceId = event.target.value;
+            if (!currentDeviceId) {
+                document.getElementById('dateFilter').disabled = true;
+                document.getElementById('deviceInfo').style.display = 'none';
+                document.getElementById('dataSection').style.display = 'none';
+                return;
+            }
+
+            // Show device info
+            showDeviceInfo(currentDeviceId);
+            
+            // Enable date picker and initialize with available dates
+            const deviceData = allDeviceData[currentDeviceId]?.data || [];
+            initializeCalendar(deviceData);
+
+            console.log("Device selected:", currentDeviceId);
+            console.log("Loaded data points:", allDeviceData[currentDeviceId]?.data?.length);
+            const selectionEnd = performance.now();
+            console.log(`Device selection processing time: ${(selectionEnd - selectionStart).toFixed(2)} ms`);
+        }
+
+        // Show device information
+        function showDeviceInfo(deviceId) {
+            const device = allDeviceData[deviceId];
+            if (!device) return;
+
+            let infoHtml = `
+                <p><strong>Device:</strong> ${device.name}</p>
+                <p><strong>Model:</strong> ${device.model || 'N/A'}</p>
+                <p><strong>Manufacturer:</strong> ${device.manufacturer || 'N/A'}</p>
+            `;
+
+            if (device.userId && userData[device.userId]) {
+                const user = userData[device.userId];
+                infoHtml += `
+                    <p><strong>User:</strong> ${user.NAME}</p>
+                    <p><strong>Gender:</strong> ${user.GENDER || 'N/A'}</p>
+                `;
+            }
+
+            document.getElementById('deviceDetails').innerHTML = infoHtml;
+            document.getElementById('deviceInfo').style.display = 'block';
+        }
+
+        // Initialize calendar with available dates
+        function initializeCalendar(deviceData) {
+            const dateFilter = document.getElementById('dateFilter');
+            dateFilter.disabled = false;
+
+            // Extract unique dates
+            const uniqueDates = [];
+            deviceData.forEach(item => {
+                if (item.TIMESTAMP && !isNaN(item.TIMESTAMP)) {
+                    const date = new Date(item.TIMESTAMP * 1000); // Convert from seconds to milliseconds
+                    if (!isNaN(date.getTime())) {
+                        const dateString = date.toISOString().split('T')[0]; // Extract date part (YYYY-MM-DD)
+                        if (!uniqueDates.includes(dateString)) {
+                            uniqueDates.push(dateString);
+                        }
+                    }
+                }
+            });
+            console.log("Unique dates for calendar:", uniqueDates);
+
+            // Initialize Flatpickr
+            flatpickr(dateFilter, {
+                mode: "single",
+                dateFormat: "Y-m-d",
+                enable: uniqueDates,
+                onChange: function(selectedDates) {
+                    currentDate = selectedDates[0];
+                    filterAndDrawCharts();
+                }
+            });
+        }
+
+        // Filter data by date and draw charts
+        function filterAndDrawCharts() {
+            if (!currentDeviceId) return;
+            
+            let deviceData = allDeviceData[currentDeviceId]?.data || [];
+            
+            if (currentDate) {
+                const selectedDateStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${currentDate.getDate().toString().padStart(2, '0')}`;
+                console.log("Selected date string (local):", selectedDateStr);
+
+                deviceData = deviceData.filter(item => {
+                    if (!item.TIMESTAMP || isNaN(item.TIMESTAMP)) return false;
+                    const d = new Date(item.TIMESTAMP * 1000);
+                    const itemDateStr = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+                    const match = itemDateStr === selectedDateStr;
+                    if (match) console.log("Matching item:", item);
+                    return match;
+                });
+            }
+
+            console.log("Data after filtering:", deviceData.length);
+
+            const drawStart = performance.now();
+            drawCharts(deviceData);
+            const drawEnd = performance.now();
+            console.log(`Total chart rendering time: ${(drawEnd - drawStart).toFixed(2)} ms`);
+            
+            document.getElementById('dataSection').style.display = 'block';
+        }
+
+        // Draw all charts
+        function drawCharts(filteredData) {
+            clearCharts();
+            
+            if (!filteredData || filteredData.length === 0) {
+                showNoDataMessage();
+                return;
+            }
+
+            // Organize data by type
+            const dataByType = {
+                HEART_RATE: filteredData.filter(d => d.HEART_RATE !== undefined),
+                STRESS: filteredData.filter(d => d.STRESS !== undefined),
+                SPO2: filteredData.filter(d => d.SPO2 !== undefined),
+                STEPS: filteredData.filter(d => d.STEPS !== undefined)
+            };
+
+            // Draw charts only if data exists
+            if (dataByType.HEART_RATE.length > 0) {
+                const hrStart = performance.now();
+                drawHeartRateChart(dataByType.HEART_RATE);
+                const hrEnd = performance.now();
+                console.log(`Heart rate chart rendering time: ${(hrEnd - hrStart).toFixed(2)} ms`);
+            } else {
+                document.getElementById('heartRateChart').innerHTML = 
+                    '<div class="no-data-message">No heart rate data available for selected date</div>';
+            }
+
+            if (dataByType.STRESS.length > 0) {
+                const stressStart = performance.now();
+                drawStressChart(dataByType.STRESS);
+                const stressEnd = performance.now();
+                console.log(`Stress chart rendering time: ${(stressEnd - stressStart).toFixed(2)} ms`);
+            } else {
+                document.getElementById('stressChart').innerHTML = 
+                    '<div class="no-data-message">No stress data available for selected date</div>';
+            }
+
+            if (dataByType.SPO2.length > 0) {
+                const spo2Start = performance.now();
+                drawSpO2Chart(dataByType.SPO2);
+                const spo2End = performance.now();
+                console.log(`SpO2 chart rendering time: ${(spo2End - spo2Start).toFixed(2)} ms`);
+            } else {
+                document.getElementById('spO2Chart').innerHTML = 
+                    '<div class="no-data-message">No SpO2 data available for selected date</div>';
+            }
+
+            if (dataByType.STEPS.length > 0) {
+                const stepsStart = performance.now();
+                drawStepsChart(dataByType.STEPS);
+                const stepsEnd = performance.now();
+                console.log(`Steps chart rendering time: ${(stepsEnd - stepsStart).toFixed(2)} ms`);
+            } else {
+                document.getElementById('stepsChart').innerHTML = 
+                    '<div class="no-data-message">No steps data available for selected date</div>';
+            }
+        }
+
+        // Clear all charts
+        function clearCharts() {
+            ['heartRateChart', 'stressChart', 'spO2Chart', 'stepsChart'].forEach(id => {
+                Plotly.purge(id);
+                document.getElementById(id).innerHTML = '';
+            });
+        }
+
+        // Show no data message
+        function showNoDataMessage() {
+            document.getElementById('dataSection').style.display = 'block';
+            ['heartRateChart', 'stressChart', 'spO2Chart', 'stepsChart'].forEach(id => {
+                document.getElementById(id).innerHTML = 
+                    '<div class="no-data-message">No data available for selected date</div>';
+            });
+        }
+
+        // Draw heart rate chart (ECG-style)
+        function drawHeartRateChart(data) {
+            const validData = data
+                .filter(d => d.HEART_RATE !== undefined && !isNaN(d.HEART_RATE) && d.TIMESTAMP)
+                .map(item => ({
+                    value: item.HEART_RATE,
+                    timestamp: new Date(item.TIMESTAMP * 1000),
+                    notWorn: item.HEART_RATE === 255
+                }))
+                .sort((a, b) => a.timestamp - b.timestamp);
+
+            if (validData.length === 0) {
+                document.getElementById('heartRateChart').innerHTML = 
+                    '<div class="no-data-message">No valid heart rate data</div>';
+                return;
+            }
+
+            // Calculate stats
+            const wornData = validData.filter(d => !d.notWorn);
+            const avgBpm = wornData.length > 0 ? 
+                Math.round(wornData.reduce((sum, d) => sum + d.value, 0) / wornData.length) : 0;
+            const notWornCount = validData.filter(d => d.notWorn).length;
+            
+            // Update info badge
+            document.getElementById('heartRateInfo').textContent = `Avg: ${avgBpm} bpm`;
+            
+            // Add notes about not worn periods
+            let notes = '';
+            if (notWornCount > 0) {
+                notes = `<i class="fas fa-exclamation-triangle"></i> Device was not worn for ${notWornCount} readings`;
+            }
+            document.getElementById('heartRateNotes').innerHTML = notes;
+
+            // Create ECG-style trace
+            const trace = {
+                x: validData.map(d => d.timestamp),
+                y: validData.map(d => d.notWorn ? null : d.value),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'Heart Rate',
+                line: {
+                    color: '#e74a3b',
+                    shape: 'spline',
+                    smoothing: 0.5
+                },
+                connectgaps: false
+            };
+
+            // Add points where device wasn't worn
+            const notWornTrace = {
+                x: validData.filter(d => d.notWorn).map(d => d.timestamp),
+                y: validData.filter(d => d.notWorn).map(d => 255),
+                mode: 'markers',
+                name: 'Not Worn',
+                marker: {
+                    color: '#6c757d',
+                    size: 8,
+                    symbol: 'x'
+                }
+            };
+
+            const plotStart = performance.now();
+            Plotly.newPlot('heartRateChart', [trace, notWornTrace], {
+                title: 'Heart Rate (bpm)',
+                xaxis: { title: 'Time' },
+                yaxis: { title: 'BPM', range: [40, 260] },
+                showlegend: true
+            });
+            const plotEnd = performance.now();
+            console.log(`Plotly.js rendering time (heart rate): ${(plotEnd - plotStart).toFixed(2)} ms`);
+        }
+
+        // Draw stress chart
+        function drawStressChart(data) {
+            const validData = data
+                .filter(d => d.STRESS !== undefined && !isNaN(d.STRESS) && d.TIMESTAMP)
+                .map(item => ({
+                    value: item.STRESS,
+                    timestamp: new Date(item.TIMESTAMP * 1000),
+                    highStress: item.STRESS > 50
+                }))
+                .sort((a, b) => a.timestamp - b.timestamp);
+
+            if (validData.length === 0) {
+                document.getElementById('stressChart').innerHTML = 
+                    '<div class="no-data-message">No valid stress data</div>';
+                return;
+            }
+
+            // Calculate stats
+            const avgStress = Math.round(validData.reduce((sum, d) => sum + d.value, 0) / validData.length);
+            const highStressCount = validData.filter(d => d.highStress).length;
+            const highStressPercent = Math.round((highStressCount / validData.length) * 100);
+            
+            // Update info badge
+            document.getElementById('stressInfo').textContent = `Avg: ${avgStress} (${highStressPercent}% high)`;
+            
+            // Add notes about stress levels
+            let stressClass = 'normal-stress';
+            let stressNote = 'Normal stress levels detected';
+            if (highStressPercent > 30) {
+                stressClass = 'high-stress';
+                stressNote = `High stress detected in ${highStressPercent}% of readings`;
+            }
+            document.getElementById('stressNotes').innerHTML = 
+                `<div class="${stressClass} p-2">${stressNote}</div>`;
+
+            // Create trace with color coding
+            const trace = {
+                x: validData.map(d => d.timestamp),
+                y: validData.map(d => d.value),
+                type: 'bar',
+                name: 'Stress Level',
+                marker: {
+                    color: validData.map(d => d.highStress ? '#dc3545' : '#28a745')
+                }
+            };
+
+            const plotStart = performance.now();
+            Plotly.newPlot('stressChart', [trace], {
+                title: 'Stress Level (0-100)',
+                xaxis: { title: 'Time' },
+                yaxis: { title: 'Stress Level', range: [0, 100] },
+                showlegend: false
+            });
+            const plotEnd = performance.now();
+            console.log(`Plotly.js rendering time (stress): ${(plotEnd - plotStart).toFixed(2)} ms`);
+        }
+
+        // Draw SpO2 chart
+        function drawSpO2Chart(data) {
+            const validData = data
+                .filter(d => d.SPO2 !== undefined && !isNaN(d.SPO2) && d.TIMESTAMP)
+                .map(item => ({
+                    value: item.SPO2,
+                    timestamp: new Date(item.TIMESTAMP * 1000),
+                    lowSpO2: item.SPO2 < 90
+                }))
+                .sort((a, b) => a.timestamp - b.timestamp);
+
+            if (validData.length === 0) {
+                document.getElementById('spO2Chart').innerHTML = 
+                    '<div class="no-data-message">No valid SpO2 data</div>';
+                return;
+            }
+
+            // Calculate stats
+            const avgSpO2 = Math.round(validData.reduce((sum, d) => sum + d.value, 0) / validData.length);
+            const lowSpO2Count = validData.filter(d => d.lowSpO2).length;
+            
+            // Update info badge
+            document.getElementById('spO2Info').textContent = `Avg: ${avgSpO2}%`;
+            
+            // Add notes about low SpO2
+            let notes = 'Normal oxygen levels';
+            if (lowSpO2Count > 0) {
+                notes = `<i class="fas fa-exclamation-triangle text-warning"></i> Low oxygen detected in ${lowSpO2Count} readings`;
+            }
+            document.getElementById('spO2Notes').innerHTML = notes;
+
+            // Create trace
+            const trace = {
+                x: validData.map(d => d.timestamp),
+                y: validData.map(d => d.value),
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'SpO2',
+                line: {
+                    color: '#4e73df',
+                    shape: 'spline',
+                    smoothing: 0.5
+                },
+                marker: {
+                    color: validData.map(d => d.lowSpO2 ? '#dc3545' : '#4e73df'),
+                    size: validData.map(d => d.lowSpO2 ? 8 : 5)
+                }
+            };
+
+            // Add reference line at 90%
+            const referenceLine = {
+                x: [validData[0].timestamp, validData[validData.length - 1].timestamp],
+                y: [90, 90],
+                mode: 'lines',
+                name: 'Normal Threshold',
+                line: {
+                    color: '#dc3545',
+                    dash: 'dash',
+                    width: 1
+                }
+            };
+
+            const plotStart = performance.now();
+            Plotly.newPlot('spO2Chart', [trace, referenceLine], {
+                title: 'Blood Oxygen Saturation (SpO2 %)',
+                xaxis: { title: 'Time' },
+                yaxis: { title: 'SpO2 %', range: [70, 100] },
+                showlegend: true
+            });
+            const plotEnd = performance.now();
+            console.log(`Plotly.js rendering time (SpO2): ${(plotEnd - plotStart).toFixed(2)} ms`);
+        }
+
+        // Draw steps chart
+        function drawStepsChart(data) {
+            // Group steps by hour of day
+            const stepsByHour = Array(24).fill(0);
+            data.forEach(item => {
+                if (item.STEPS && !isNaN(item.STEPS) && item.TIMESTAMP) {
+                    const date = new Date(item.TIMESTAMP * 1000);
+                    const hour = date.getHours();
+                    stepsByHour[hour] += item.STEPS;
+                }
+            });
+
+            const totalSteps = stepsByHour.reduce((sum, steps) => sum + steps, 0);
+            
+            // Update info badge
+            document.getElementById('stepsInfo').textContent = `Total: ${totalSteps} steps`;
+            
+            // Add notes about step goal
+            let notes = '';
+            const user = currentDeviceId && allDeviceData[currentDeviceId].userId ? 
+                userData[allDeviceData[currentDeviceId].userId] : null;
+            
+            if (user && user.STEPS_GOAL_SPD) {
+                const percent = Math.round((totalSteps / user.STEPS_GOAL_SPD) * 100);
+                notes = `Reached ${percent}% of daily goal (${user.STEPS_GOAL_SPD} steps)`;
+                if (percent >= 100) {
+                    notes = `<span class="text-success"><i class="fas fa-check-circle"></i> ${notes}</span>`;
+                }
+            }
+            document.getElementById('stepsNotes').innerHTML = notes;
+
+            // Create trace
+            const trace = {
+                x: stepsByHour.map((_, i) => `${i}:00`),
+                y: stepsByHour,
+                type: 'bar',
+                name: 'Steps',
+                marker: {
+                    color: '#1cc88a'
+                }
+            };
+
+            const plotStart = performance.now();
+            Plotly.newPlot('stepsChart', [trace], {
+                title: 'Hourly Step Count',
+                xaxis: { title: 'Hour of Day' },
+                yaxis: { title: 'Steps' },
+                showlegend: false
+            });
+            const plotEnd = performance.now();
+            console.log(`Plotly.js rendering time (steps): ${(plotEnd - plotStart).toFixed(2)} ms`);
+        }
+
+        // Helper functions
+        function showMessage(message) {
+            // Could be implemented with a toast or alert
+            console.log(message);
+        }
+
+        function showError(message) {
+            // Could be implemented with a red toast or alert
+            console.error(message);
+        }
+
+        // Initialize the app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            const totalLoadStart = performance.now();
+            initializeApp().then(() => {
+                const totalLoadEnd = performance.now();
+                console.log(`Total page load time: ${(totalLoadEnd - totalLoadStart).toFixed(2)} ms`);
+                //console.log('Initial load time depends on Firestore response time, typically 100-500ms');
+                //console.log('The pako library introduces about 5-50ms of decompression delay depending on the size of the dataset');
+                //console.log('Plotly.js uses WebGL acceleration to maintain smooth rendering performance at about 10-100ms per plot');
+            });
+        });
+    </script>
+</body>
+</html>

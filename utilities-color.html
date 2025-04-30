@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firestore Data Viewer</title>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script> <!-- For Gzip decompression -->
+</head>
+<body>
+    <h2>Decompressed Firestore Data</h2>
+    <pre id="output">Loading...</pre>
+
+    <script>
+        // 🔥 Firebase Configuration
+        const firebaseConfig = {
+            authDomain: "bachelor-thesis-9bd4c.firebaseapp.com",
+            projectId: "bachelor-thesis-9bd4c",
+            storageBucket: "bachelor-thesis-9bd4c.appspot.com",
+        };
+
+        // 🔥 Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // 📌 Fetch and Decompress Data
+        async function fetchData() {
+            try {
+                // Get the latest document from Firestore
+                const snapshot = await db.collection("databases").orderBy("timestamp", "desc").limit(1).get();
+
+                if (snapshot.empty) {
+                    document.getElementById("output").innerText = "No data found.";
+                    return;
+                }
+
+                snapshot.forEach(doc => {
+                    let compressedData = doc.data().data;  // 🔥 Replace 'data' with your actual field name
+                    
+                    // Decode from Base64
+                    let binaryData = atob(compressedData);
+
+                    // Convert binary string to Uint8Array
+                    let uint8Array = new Uint8Array(binaryData.length);
+                    for (let i = 0; i < binaryData.length; i++) {
+                        uint8Array[i] = binaryData.charCodeAt(i);
+                    }
+
+                    // Decompress using Pako (for Gzip)
+                    let decompressedData = new TextDecoder().decode(pako.inflate(uint8Array));
+
+                    // Try parsing as JSON for better readability
+                    try {
+                        let jsonData = JSON.parse(decompressedData);
+                        decompressedData = JSON.stringify(jsonData, null, 2); // Pretty-print JSON
+                    } catch (error) {
+                        console.warn("Data is not valid JSON, displaying raw text.");
+                    }
+
+                    // Display Data
+                    document.getElementById("output").innerText = decompressedData;
+                });
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                document.getElementById("output").innerText = "Error loading data.";
+            }
+        }
+
+        fetchData();
+    </script>
+</body>
+</html>

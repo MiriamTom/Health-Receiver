@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firestore Schema Viewer</title>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .attribute-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        .attribute-list li {
+            padding: 4px 0;
+        }
+    </style>
+</head>
+<body>
+    <h2>Database Schema</h2>
+    <div id="tables-container">Loading...</div>
+
+    <script>
+        // 🔥 Firebase Configuration
+        const firebaseConfig = {
+            authDomain: "bachelor-thesis-9bd4c.firebaseapp.com",
+            projectId: "bachelor-thesis-9bd4c",
+            storageBucket: "bachelor-thesis-9bd4c.appspot.com",
+        };
+
+        // 🔥 Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // 📌 Fetch and Display Data
+        async function fetchData() {
+            try {
+                // Get the latest document from Firestore
+                const snapshot = await db.collection("databases").orderBy("timestamp", "desc").limit(1).get();
+
+                if (snapshot.empty) {
+                    document.getElementById("tables-container").innerHTML = "<p>No data found.</p>";
+                    return;
+                }
+
+                snapshot.forEach(doc => {
+                    let compressedData = doc.data().data;  // 🔥 Replace 'data' with your actual field name
+
+                    // Decode from Base64
+                    let binaryData = atob(compressedData);
+
+                    // Convert binary string to Uint8Array
+                    let uint8Array = new Uint8Array(binaryData.length);
+                    for (let i = 0; i < binaryData.length; i++) {
+                        uint8Array[i] = binaryData.charCodeAt(i);
+                    }
+
+                    // Decompress using Pako (for Gzip)
+                    let decompressedData = new TextDecoder().decode(pako.inflate(uint8Array));
+
+                    // Try parsing as JSON
+                    let jsonData;
+                    try {
+                        jsonData = JSON.parse(decompressedData);
+                    } catch (error) {
+                        console.warn("Data is not valid JSON, displaying raw text.");
+                        document.getElementById("tables-container").innerHTML = `<pre>${decompressedData}</pre>`;
+                        return;
+                    }
+
+                    // Render Schema (only tables and attributes)
+                    renderSchema(jsonData);
+                });
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                document.getElementById("tables-container").innerHTML = "<p>Error loading data.</p>";
+            }
+        }
+
+        function renderSchema(jsonData) {
+            const container = document.getElementById("tables-container");
+            container.innerHTML = ""; // Clear previous content
+
+            // Group data by table_name and collect unique attributes
+            let schema = {};
+            jsonData.forEach(item => {
+                const tableName = item.table_name || "UNKNOWN_TABLE";
+                if (!schema[tableName]) {
+                    schema[tableName] = new Set();
+                }
+                
+                // Add all attributes for this row
+                Object.keys(item).forEach(key => {
+                    schema[tableName].add(key);
+                });
+            });
+
+            // Create schema display
+            for (let tableName in schema) {
+                const attributes = Array.from(schema[tableName]).sort();
+                
+                let tableHtml = `
+                    <div class="table-schema">
+                        <h3>${tableName}</h3>
+                        <ul class="attribute-list">
+                `;
+                
+                attributes.forEach(attr => {
+                    tableHtml += `<li>${attr}</li>`;
+                });
+                
+                tableHtml += `</ul></div>`;
+                container.innerHTML += tableHtml;
+            }
+
+            if (Object.keys(schema).length === 0) {
+                container.innerHTML = "<p>No tables found in the data.</p>";
+            }
+        }
+
+        fetchData();
+    </script>
+</body>
+</html>
